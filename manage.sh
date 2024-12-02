@@ -66,47 +66,110 @@ system_management_menu() {
         echo -e "${BLUE}================================${NC}"
         echo
         echo "请选择操作："
-        echo "1) 系统配置"
-        echo "  - 主机名设置"
-        echo "  - 时区设置"
-        echo "  - hosts管理"
-        echo "2) 系统优化"
-        echo "  - 系统参数优化"
-        echo "  - 性能优化"
-        echo "  - 服务优化"
-        echo "3) 系统维护"
-        echo "  - 系统更新"
-        echo "  - 系统清理"
-        echo "  - 系统修复"
-        echo "4) 内存管理"
-        echo "  - 内存优化"
-        echo "  - Swap管理"
-        echo "  - 缓存清理"
-        echo "5) 系统监控"
-        echo "  - 性能监控"
-        echo "  - 资源统计"
-        echo "  - 日志管理"
-        echo "6) 系统备份"
-        echo "  - 备份管理"
-        echo "  - 定时备份"
-        echo "  - 还原管理"
-        echo "7) 安全管理"
-        echo "  - 安全审计"
-        echo "  - 系统加固"
-        echo "  - 日志分析"
-        echo "8) 返回主菜单"
+        echo "1) 系统基本配置"
+        echo "2) 系统性能优化"
+        echo "3) 系统监控与维护"
+        echo "4) 系统安全管理"
+        echo "5) 返回主菜单"
         echo
-        read -p "请输入选项 [1-8]: " choice
+        read -p "请输入选项 [1-5]: " choice
 
         case $choice in
-            1) system_config ;;
-            2) system_optimization_menu ;;
-            3) system_maintenance_menu ;;
-            4) memory_management_menu ;;
-            5) system_monitor_menu ;;
-            6) backup_restore_menu ;;
-            7) security_management_menu ;;
-            8) return ;;
+            1)
+                while true; do
+                    clear
+                    echo -e "${BLUE}系统基本配置${NC}"
+                    echo "1) 主机名设置"
+                    echo "2) 时区设置"
+                    echo "3) hosts文件管理"
+                    echo "4) 用户管理"
+                    echo "5) 返回上级菜单"
+                    echo
+                    read -p "请选择 [1-5]: " subchoice
+                    case $subchoice in
+                        1) modify_hostname ;;
+                        2) select_timezone ;;
+                        3) manage_hosts ;;
+                        4) user_management ;;
+                        5) break ;;
+                        *) print_error "无效的选项" ;;
+                    esac
+                    wait_for_key
+                done
+                ;;
+            2)
+                while true; do
+                    clear
+                    echo -e "${BLUE}系统性能优化${NC}"
+                    echo "1) 系统参数优化"
+                    echo "2) 内存管理优化"
+                    echo "3) 磁盘IO优化"
+                    echo "4) 网络性能优化"
+                    echo "5) Swap管理"
+                    echo "6) 返回上级菜单"
+                    echo
+                    read -p "请选择 [1-6]: " subchoice
+                    case $subchoice in
+                        1) system_params_optimization ;;
+                        2) memory_optimization ;;
+                        3) disk_io_optimization ;;
+                        4) network_optimization ;;
+                        5) swap_management ;;
+                        6) break ;;
+                        *) print_error "无效的选项" ;;
+                    esac
+                    wait_for_key
+                done
+                ;;
+            3)
+                while true; do
+                    clear
+                    echo -e "${BLUE}系统监控与维护${NC}"
+                    echo "1) 系统资源监控"
+                    echo "2) 进程管理"
+                    echo "3) 日志管理"
+                    echo "4) 系统更新"
+                    echo "5) 系统清理"
+                    echo "6) 系统修复"
+                    echo "7) 返回上级菜单"
+                    echo
+                    read -p "请选择 [1-7]: " subchoice
+                    case $subchoice in
+                        1) show_system_info ;;
+                        2) process_management ;;
+                        3) log_management ;;
+                        4) system_update ;;
+                        5) system_clean ;;
+                        6) system_repair ;;
+                        7) break ;;
+                        *) print_error "无效的选项" ;;
+                    esac
+                    wait_for_key
+                done
+                ;;
+            4)
+                while true; do
+                    clear
+                    echo -e "${BLUE}系统安全管理${NC}"
+                    echo "1) 安全审计"
+                    echo "2) 系统加固"
+                    echo "3) 防火墙管理"
+                    echo "4) 备份还原"
+                    echo "5) 返回上级菜单"
+                    echo
+                    read -p "请选择 [1-5]: " subchoice
+                    case $subchoice in
+                        1) security_audit ;;
+                        2) security_hardening ;;
+                        3) firewall_management ;;
+                        4) backup_restore_menu ;;
+                        5) break ;;
+                        *) print_error "无效的选项" ;;
+                    esac
+                    wait_for_key
+                done
+                ;;
+            5) return ;;
             *)
                 print_error "无效的选项"
                 sleep 2
