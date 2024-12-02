@@ -167,19 +167,20 @@ MAX_LOG_SIZE="100M"
 EOF
     fi
     
-    # 检查必要的命令
-    local required_commands=(
-        "curl"
-        "wget"
-        "netstat"
-        "ss"
-        "tar"
-        "gzip"
+    # 检查必要的命令和对应的包名
+    declare -A packages=(
+        ["curl"]="curl"
+        ["wget"]="wget"
+        ["netstat"]="net-tools"
+        ["ss"]="iproute2"
+        ["tar"]="tar"
+        ["gzip"]="gzip"
     )
     
-    for cmd in "${required_commands[@]}"; do
+    for cmd in "${!packages[@]}"; do
         if ! command -v "$cmd" &> /dev/null; then
-            install_package "$cmd" || return 1
+            print_message "正在安装 ${packages[$cmd]}..."
+            install_package "${packages[$cmd]}" || return 1
         fi
     done
     
@@ -1460,7 +1461,7 @@ docker_compose_management() {
                 fi
                 ;;
             4)
-                read -p "请输入项目目录路径: " project_path
+                read -p "请输入���目目录路径: " project_path
                 if [ -f "${project_path}/docker-compose.yml" ] || [ -f "${project_path}/compose.yaml" ]; then
                     cd "$project_path" && docker-compose ps
                 else
