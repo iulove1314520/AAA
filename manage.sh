@@ -148,9 +148,12 @@ get_system_info() {
 
 # 初始化函数
 init() {
+    echo -e "${GREEN}[INFO] 正在初始化...${NC}"
+    
     # 创建必要的目录
-    mkdir -p "$(dirname "$LOG_FILE")"
-    mkdir -p "$(dirname "$CONFIG_FILE")"
+    mkdir -p /var/log/manage_script
+    mkdir -p /etc/manage_script
+    mkdir -p /backup
     
     # 检查并创建配置文件
     if [ ! -f "$CONFIG_FILE" ]; then
@@ -161,9 +164,6 @@ LOG_LEVEL="INFO"
 MAX_LOG_SIZE="100M"
 EOF
     fi
-    
-    # 加载配置文件
-    source "$CONFIG_FILE"
     
     # 检查必要的命令
     local required_commands=(
@@ -176,30 +176,29 @@ EOF
     )
     
     for cmd in "${required_commands[@]}"; do
-        if ! check_command "$cmd"; then
+        if ! command -v "$cmd" &> /dev/null; then
+            echo -e "${YELLOW}[WARN] 正在安装 $cmd...${NC}"
             install_package "$cmd"
         fi
     done
+    
+    echo -e "${GREEN}[INFO] 初始化完成${NC}"
 }
 
 # 清理函数
 cleanup() {
+    echo -e "${GREEN}[INFO] 正在清理...${NC}"
     # 清理临时文件
     rm -f /tmp/manage_script_*
-    
     # 恢复终端设置
     stty echo
-    
-    print_message "清理完成"
-    exit 0
 }
 
 # 错误处理函数
 error_handler() {
     local line_number=$1
     local error_code=$2
-    print_error "脚本执行出错，行号: $line_number，错误代码: $error_code"
-    cleanup
+    echo -e "${RED}[ERROR] 脚本执行出错，行号: $line_number，错误代码: $error_code${NC}" >&2
     exit 1
 }
 
@@ -207,7 +206,7 @@ error_handler() {
 set -e
 trap 'error_handler ${LINENO} $?' ERR
 trap cleanup EXIT
-trap 'echo "收到中断信号，正在清理..."; cleanup' INT TERM
+trap 'echo -e "${YELLOW}[WARN] 收到中断信号，正在清理...${NC}"; cleanup; exit 1' INT TERM
 
 ###################
 # 系统管理函数
@@ -540,7 +539,7 @@ realtime_monitor() {
     echo -e "${BLUE}================================${NC}"
     echo
     
-    # 检查并安装必要工具
+    # 检查并安装���要工具
     if ! check_command "dstat"; then
         install_package "dstat"
     fi
@@ -1252,7 +1251,7 @@ docker_image_management() {
                 docker search "$keyword"
                 ;;
             4)
-                read -p "请输入Dockerfile路径: " dockerfile_path
+                read -p "请输���Dockerfile路径: " dockerfile_path
                 read -p "请输入镜像名称和标签: " image_tag
                 docker build -t "$image_tag" "$dockerfile_path"
                 ;;
@@ -1365,7 +1364,7 @@ docker_volume_management() {
 
         case $choice in
             1)
-                read -p "请输入数据卷名称: " vol_name
+                read -p "��输入数据卷名称: " vol_name
                 docker volume create "$vol_name"
                 ;;
             2)
@@ -2230,8 +2229,19 @@ system_management_menu() {
 
 # 主函数
 main() {
+    echo -e "${GREEN}[INFO] 脚本开始执行...${NC}"
+    
     # 检查root权限
-    check_root
+    if [ "$EUID" -ne 0 ]; then
+        echo -e "${RED}[ERROR] 请使用 sudo 或 root 权限运行此脚本${NC}" >&2
+        exit 1
+    fi
+    
+    # 检查系统类型
+    if ! check_system_type &>/dev/null; then
+        echo -e "${RED}[ERROR] 不支持的系统类型${NC}" >&2
+        exit 1
+    fi
     
     # 初始化
     init
