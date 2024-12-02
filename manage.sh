@@ -58,7 +58,64 @@ check_root() {
     fi
 }
 
-# 显示主菜��
+# 系统管理与优化菜单
+system_management_menu() {
+    while true; do
+        clear
+        echo -e "${BLUE}系统管理与优化${NC}"
+        echo -e "${BLUE}================================${NC}"
+        echo
+        echo "请选择操作："
+        echo "1) 系统配置"
+        echo "  - 主机名设置"
+        echo "  - 时区设置"
+        echo "  - hosts管理"
+        echo "2) 系统优化"
+        echo "  - 系统参数优化"
+        echo "  - 性能优化"
+        echo "  - 服务优化"
+        echo "3) 系统维护"
+        echo "  - 系统更新"
+        echo "  - 系统清理"
+        echo "  - 系统修复"
+        echo "4) 内存管理"
+        echo "  - 内存优化"
+        echo "  - Swap管理"
+        echo "  - 缓存清理"
+        echo "5) 系统监控"
+        echo "  - 性能监控"
+        echo "  - 资源统计"
+        echo "  - 日志管理"
+        echo "6) 系统备份"
+        echo "  - 备份管理"
+        echo "  - 定时备份"
+        echo "  - 还原管理"
+        echo "7) 安全管理"
+        echo "  - 安全审计"
+        echo "  - 系统加固"
+        echo "  - 日志分析"
+        echo "8) 返回主菜单"
+        echo
+        read -p "请输入选项 [1-8]: " choice
+
+        case $choice in
+            1) system_config ;;
+            2) system_optimization_menu ;;
+            3) system_maintenance_menu ;;
+            4) memory_management_menu ;;
+            5) system_monitor_menu ;;
+            6) backup_restore_menu ;;
+            7) security_management_menu ;;
+            8) return ;;
+            *)
+                print_error "无效的选项"
+                sleep 2
+                ;;
+        esac
+    done
+}
+
+# 显示主菜单
 show_main_menu() {
     clear
     blue "${SCRIPT_NAME} v${VERSION}"
@@ -246,7 +303,7 @@ show_basic_info() {
     echo -e "${BLUE}基础系统信息${NC}"
     echo -e "${BLUE}================================${NC}"
     
-    # CPU信��
+    # CPU信
     echo -e "${GREEN}CPU 信息:${NC}"
     echo "处理器: $(grep "model name" /proc/cpuinfo | head -n1 | cut -d: -f2)"
     echo "核心数: $(nproc)"
@@ -449,7 +506,7 @@ network_diagnostics() {
     echo
     
     # 检查网络连接
-    echo -e "${GREEN}网络连���状态:${NC}"
+    echo -e "${GREEN}网络连状态:${NC}"
     ss -tuln
     
     wait_for_key
@@ -546,7 +603,7 @@ system_config() {
                 echo "当前hosts文件内容:"
                 cat /etc/hosts
                 echo
-                echo "请���择操作："
+                echo "请择操作："
                 echo "1) 添加新的hosts记录"
                 echo "2) 修改现有记录"
                 echo "3) 返回上级菜单"
@@ -560,11 +617,11 @@ system_config() {
                             echo "$ip       $hostname" >> /etc/hosts
                             print_message "hosts记录已添加"
                         else
-                            print_error "IP或主机名不能�������空"
+                            print_error "IP或主机名不能为空"
                         fi
                         ;;
                     2)
-                        read -p "请输入要修����的主机��: " old_hostname
+                        read -p "请输入要修改的主机名: " old_hostname
                         read -p "请输入新的IP地址: " new_ip
                         sed -i "s/.*$old_hostname/$new_ip    $old_hostname/" /etc/hosts
                         print_message "hosts记录已修改"
@@ -967,7 +1024,7 @@ EOF
 limit_conn_zone \$binary_remote_addr zone=conn_limit_per_ip:10m;
 limit_conn conn_limit_per_ip 10;
 
-# ��制请求频率
+# 限制请求频率
 limit_req_zone \$binary_remote_addr zone=req_limit_per_ip:10m rate=5r/s;
 limit_req zone=req_limit_per_ip burst=10 nodelay;
 EOF
@@ -1176,7 +1233,7 @@ update_docker_compose() {
     print_message "最新版本: $LATEST_VERSION"
     
     if [ "$CURRENT_VERSION" = "$LATEST_VERSION" ]; then
-        print_message "已经是��新版本"
+        print_message "已经是新版本"
         return
     fi
     
@@ -1212,7 +1269,7 @@ uninstall_docker_compose() {
 docker_compose_project_management() {
     while true; do
         clear
-        echo -e "${BLUE}Compose ���目管理${NC}"
+        echo -e "${BLUE}Compose 项目管理${NC}"
         echo -e "${BLUE}================================${NC}"
         echo
         echo "请选择操作："
@@ -1414,7 +1471,7 @@ uninstall_docker() {
     docker images -q | xargs -r docker rmi -f
     
     # 删除所有卷
-    print_message "删除所���数据卷..."
+    print_message "删除所有自定义数据卷..."
     docker volume ls -q | xargs -r docker volume rm
     
     # 删除所有网络
@@ -1855,7 +1912,7 @@ docker_resource_management() {
                 read -p "请输入容器名称: " container_name
                 
                 # 显示当前限制
-                echo "���前资源限制："
+                echo "当前资源限制："
                 docker inspect "$container_name" | grep -A 8 "HostConfig"
                 
                 echo
@@ -2136,7 +2193,7 @@ kernel.pid_max = 65535
 kernel.shmmax = 68719476736
 EOF
 
-    # ��用新参数
+    # 使用新参数
     sysctl -p
 
     print_message "系统参数优化完成"
@@ -2396,7 +2453,7 @@ function install_tools() {
         yum install -y wget curl vim nano htop net-tools iftop iotop
     fi
     
-    print_message "工具安装���成"
+    print_message "工具安装完成"
     wait_for_key
 }
 
@@ -2609,7 +2666,7 @@ system_maintenance_menu() {
         echo "1) 系统更新"
         echo "2) 系统清理"
         echo "3) 系统修复"
-        echo "4) ���志管理"
+        echo "4) 日志管理"
         echo "5) 磁盘检查"
         echo "6) 返回上级菜单"
         echo
@@ -2740,11 +2797,11 @@ security_audit() {
     echo
     
     # 检查sudo权限
-    echo -e "${GREEN}具有sudo权限的用���:${NC}"
+    echo -e "${GREEN}具有sudo权限的用户:${NC}"
     grep -Po '^sudo.+:\K.*$' /etc/group
     echo
     
-    # 检查最后修改的文件
+    # 检查最近24小时内修改的重要文件
     echo -e "${GREEN}最近24小时内修改的重要文件:${NC}"
     find /etc -type f -mtime -1
     echo
@@ -2949,7 +3006,7 @@ interface_management() {
             4)
                 ip -br link show
                 read -p "请输入要配置的接口名称: " interface
-                read -p "请输入IP地���(例如: 192.168.1.100/24): " ip_addr
+                read -p "请输入IP地址(例如: 192.168.1.100/24): " ip_addr
                 ip addr add $ip_addr dev $interface
                 print_message "IP地址已配置"
                 ;;
@@ -3100,63 +3157,6 @@ swap_management() {
                 ;;
         esac
         wait_for_key
-    done
-}
-
-# 系统管理与优化菜单
-system_management_menu() {
-    while true; do
-        clear
-        echo -e "${BLUE}系统管理与优化${NC}"
-        echo -e "${BLUE}================================${NC}"
-        echo
-        echo "请选择操作："
-        echo "1) 系统配置"
-        echo "  - 主机名设置"
-        echo "  - 时区设置"
-        echo "  - hosts管理"
-        echo "2) 系统优化"
-        echo "  - 系统参数优化"
-        echo "  - 性能优化"
-        echo "  - 服务优化"
-        echo "3) 系统维护"
-        echo "  - 系统更新"
-        echo "  - 系统清理"
-        echo "  - 系统修复"
-        echo "4) 内存管理"
-        echo "  - 内存优化"
-        echo "  - Swap管理"
-        echo "  - 缓存清理"
-        echo "5) 系统监控"
-        echo "  - 性能监控"
-        echo "  - 资源统计"
-        echo "  - 日志管理"
-        echo "6) 系统备份"
-        echo "  - 备份管理"
-        echo "  - 定时备份"
-        echo "  - 还原管理"
-        echo "7) 安全管理"
-        echo "  - 安全审计"
-        echo "  - 系统加固"
-        echo "  - 日志分析"
-        echo "8) 返回主菜单"
-        echo
-        read -p "请输入选项 [1-8]: " choice
-
-        case $choice in
-            1) system_config ;;
-            2) system_optimization_menu ;;
-            3) system_maintenance_menu ;;
-            4) memory_management_menu ;;
-            5) system_monitor_menu ;;
-            6) backup_restore_menu ;;
-            7) security_management_menu ;;
-            8) return ;;
-            *)
-                print_error "无效的选项"
-                sleep 2
-                ;;
-        esac
     done
 }
 
