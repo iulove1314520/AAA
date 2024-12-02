@@ -560,7 +560,7 @@ system_config() {
                             echo "$ip       $hostname" >> /etc/hosts
                             print_message "hosts记录已添加"
                         else
-                            print_error "IP或主机名不能���空"
+                            print_error "IP或主机名不能�����空"
                         fi
                         ;;
                     2)
@@ -1176,7 +1176,7 @@ update_docker_compose() {
     print_message "最新版本: $LATEST_VERSION"
     
     if [ "$CURRENT_VERSION" = "$LATEST_VERSION" ]; then
-        print_message "已经是最新版本"
+        print_message "已经是��新版本"
         return
     fi
     
@@ -1414,7 +1414,7 @@ uninstall_docker() {
     docker images -q | xargs -r docker rmi -f
     
     # 删除所有卷
-    print_message "删除所有数据卷..."
+    print_message "删除所���数据卷..."
     docker volume ls -q | xargs -r docker volume rm
     
     # 删除所有网络
@@ -3259,4 +3259,180 @@ security_management_menu() {
                 ;;
         esac
     done
+}
+
+# 系统安全加固函数
+security_hardening() {
+    clear
+    echo -e "${BLUE}系统安全加固${NC}"
+    echo -e "${BLUE}================================${NC}"
+    echo
+    
+    # 备份重要配置文件
+    print_message "备份重要配置文件..."
+    cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bak
+    cp /etc/passwd /etc/passwd.bak
+    cp /etc/shadow /etc/shadow.bak
+    
+    # SSH安全配置
+    print_message "配置SSH安全选项..."
+    sed -i 's/#PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
+    sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
+    systemctl restart sshd
+    
+    # 设置密码策略
+    print_message "设置密码策略..."
+    sed -i 's/PASS_MAX_DAYS\t99999/PASS_MAX_DAYS\t90/' /etc/login.defs
+    sed -i 's/PASS_MIN_DAYS\t0/PASS_MIN_DAYS\t7/' /etc/login.defs
+    sed -i 's/PASS_WARN_AGE\t7/PASS_WARN_AGE\t14/' /etc/login.defs
+    
+    # 限制系统资源
+    print_message "配置系统资源限制..."
+    cat >> /etc/security/limits.conf <<EOF
+* hard core 0
+* soft nofile 65535
+* hard nofile 65535
+EOF
+    
+    print_message "系统安全加固完成"
+    wait_for_key
+}
+
+# 日志安全分析函数
+log_security_analysis() {
+    clear
+    echo -e "${BLUE}日志安全分析${NC}"
+    echo -e "${BLUE}================================${NC}"
+    echo
+    
+    echo "分析登录失败记录..."
+    echo "----------------------------------------"
+    grep "Failed password" /var/log/auth.log | tail -n 10
+    echo
+    
+    echo "检查可疑的sudo使用..."
+    echo "----------------------------------------"
+    grep "sudo:" /var/log/auth.log | tail -n 10
+    echo
+    
+    echo "检查系统异常..."
+    echo "----------------------------------------"
+    grep -i "error\|warning\|fail" /var/log/syslog | tail -n 10
+    echo
+    
+    wait_for_key
+}
+
+# 系统修复函数
+system_repair() {
+    clear
+    echo -e "${BLUE}系统修复${NC}"
+    echo -e "${BLUE}================================${NC}"
+    echo
+    echo "请选择修复选项："
+    echo "1) 文件系统检查"
+    echo "2) 软件包修复"
+    echo "3) 系统文件权限修复"
+    echo "4) 返回上级菜单"
+    echo
+    read -p "请输入选项 [1-4]: " choice
+
+    case $choice in
+        1)
+            echo "正在检查文件系统..."
+            fsck -f /
+            ;;
+        2)
+            echo "修复软件包..."
+            if [ -f /etc/debian_version ]; then
+                apt-get update
+                apt-get -f install
+                dpkg --configure -a
+            elif [ -f /etc/redhat-release ]; then
+                yum clean all
+                yum check
+                yum update
+            fi
+            ;;
+        3)
+            echo "修复系统文件权限..."
+            chmod 644 /etc/passwd
+            chmod 400 /etc/shadow
+            chmod 644 /etc/group
+            chmod 400 /etc/gshadow
+            ;;
+        4) return ;;
+        *)
+            print_error "无效的选项"
+            sleep 2
+            ;;
+    esac
+    wait_for_key
+}
+
+# 磁盘检查函数
+disk_check() {
+    clear
+    echo -e "${BLUE}磁盘检查${NC}"
+    echo -e "${BLUE}================================${NC}"
+    echo
+    
+    # 显示磁盘使用情况
+    df -h
+    echo
+    
+    # 显示所有磁盘分区
+    fdisk -l
+    echo
+    
+    # 检查磁盘错误
+    read -p "请输入要检查的分区 (如 /dev/sda1): " partition
+    if [ -n "$partition" ]; then
+        fsck -f $partition
+    fi
+    
+    wait_for_key
+}
+
+# 日志管理函数
+log_management() {
+    clear
+    echo -e "${BLUE}日志管理${NC}"
+    echo -e "${BLUE}================================${NC}"
+    echo
+    echo "请选择操作："
+    echo "1) 查看系统日志"
+    echo "2) 查看认证日志"
+    echo "3) 查看应用日志"
+    echo "4) 清理旧日志"
+    echo "5) 返回上级菜单"
+    echo
+    read -p "请输入选项 [1-5]: " choice
+
+    case $choice in
+        1)
+            journalctl -n 100 --no-pager
+            ;;
+        2)
+            tail -n 50 /var/log/auth.log
+            ;;
+        3)
+            ls -l /var/log/*.log
+            read -p "请输入要查看的日志文件: " logfile
+            if [ -f "/var/log/$logfile" ]; then
+                tail -n 50 "/var/log/$logfile"
+            fi
+            ;;
+        4)
+            find /var/log -type f -name "*.log.*" -mtime +30 -delete
+            journalctl --vacuum-time=30d
+            print_message "已清理30天前的日志"
+            ;;
+        5) return ;;
+        *)
+            print_error "无效的选项"
+            sleep 2
+            ;;
+    esac
+    wait_for_key
 }
