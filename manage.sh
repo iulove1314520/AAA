@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# 设置错误处理
+set -e
+set -o pipefail
+
 ###################
 # 基础配置
 ###################
@@ -148,8 +152,6 @@ get_system_info() {
 
 # 初始化函数
 init() {
-    echo -e "${GREEN}[INFO] 正在初始化...${NC}"
-    
     # 创建必要的目录
     mkdir -p /var/log/manage_script
     mkdir -p /etc/manage_script
@@ -177,36 +179,34 @@ EOF
     
     for cmd in "${required_commands[@]}"; do
         if ! command -v "$cmd" &> /dev/null; then
-            echo -e "${YELLOW}[WARN] 正在安装 $cmd...${NC}"
-            install_package "$cmd"
+            install_package "$cmd" || return 1
         fi
     done
     
-    echo -e "${GREEN}[INFO] 初始化完成${NC}"
+    return 0
 }
 
 # 清理函数
 cleanup() {
-    echo -e "${GREEN}[INFO] 正在清理...${NC}"
-    # 清理临时文件
+    # 只在退出时清理
+    if [ "$?" -ne 0 ]; then
+        echo -e "${RED}[ERROR] 脚本执行出错${NC}" >&2
+    fi
     rm -f /tmp/manage_script_*
-    # 恢复终端设置
     stty echo
 }
 
-# 错误处理函数
+# ���误处理函数
 error_handler() {
     local line_number=$1
     local error_code=$2
     echo -e "${RED}[ERROR] 脚本执行出错，行号: $line_number，错误代码: $error_code${NC}" >&2
-    exit 1
 }
 
-# 设置错误处理
-set -e
+# 设置trap
 trap 'error_handler ${LINENO} $?' ERR
 trap cleanup EXIT
-trap 'echo -e "${YELLOW}[WARN] 收到中断信号，正在清理...${NC}"; cleanup; exit 1' INT TERM
+trap 'echo -e "${YELLOW}[WARN] 收到中断信号${NC}"; exit 1' INT TERM
 
 ###################
 # 系统管理函数
@@ -964,7 +964,7 @@ service_status_management() {
                 print_message "服务已启动"
                 ;;
             2)
-                read -p "请输入服务名称: " service_name
+                read -p "��输入服务名称: " service_name
                 systemctl stop "$service_name"
                 print_message "服务已停止"
                 ;;
@@ -2229,8 +2229,6 @@ system_management_menu() {
 
 # 主函数
 main() {
-    echo -e "${GREEN}[INFO] 脚本开始执行...${NC}"
-    
     # 检查root权限
     if [ "$EUID" -ne 0 ]; then
         echo -e "${RED}[ERROR] 请使用 sudo 或 root 权限运行此脚本${NC}" >&2
@@ -2238,13 +2236,17 @@ main() {
     fi
     
     # 检查系统类型
-    if ! check_system_type &>/dev/null; then
+    local system_type=$(check_system_type)
+    if [ "$system_type" = "unknown" ]; then
         echo -e "${RED}[ERROR] 不支持的系统类型${NC}" >&2
         exit 1
     fi
     
     # 初始化
-    init
+    init || {
+        echo -e "${RED}[ERROR] 初始化失败${NC}" >&2
+        exit 1
+    }
     
     # 显示主菜单
     show_main_menu
