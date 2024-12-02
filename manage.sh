@@ -54,7 +54,7 @@ print_error() { red "[ERROR] $1"; }
 # 等待用户按键
 wait_for_key() {
     echo
-    read -n 1 -s -r -p "按任意键继续..."
+    read -n 1 -s -r -p "按任意���继续..."
     echo
 }
 
@@ -73,6 +73,105 @@ check_root() {
     else
         rm -f /etc/test_permission
     fi
+}
+
+# 用户管理函数 (添加在system_management_menu函数之前)
+user_management() {
+    while true; do
+        clear
+        echo -e "${BLUE}用户管理${NC}"
+        echo -e "${BLUE}================================${NC}"
+        echo
+        echo "请选择操作："
+        echo "1) 查看所有用户"
+        echo "2) 添加新用户"
+        echo "3) 删除用户"
+        echo "4) 修改用户密码"
+        echo "5) 修改用户权限"
+        echo "6) 查看用户详情"
+        echo "7) 返回上级菜单"
+        echo
+        read -p "请输入选项 [1-7]: " choice
+
+        case $choice in
+            1)
+                echo "系统用户列表："
+                echo "----------------"
+                awk -F: '$3 >= 1000 && $3 != 65534 {print "用户名: "$1"\t UID: "$3"\t 主目录: "$6}' /etc/passwd
+                ;;
+            2)
+                read -p "请输入新用户名: " username
+                read -p "是否创建家目录？(y/n): " create_home
+                read -p "是否添加到sudo组？(y/n): " add_sudo
+                
+                if [ "$create_home" = "y" ]; then
+                    home_opt="-m"
+                else
+                    home_opt=""
+                fi
+                
+                useradd $home_opt $username
+                passwd $username
+                
+                if [ "$add_sudo" = "y" ]; then
+                    usermod -aG sudo $username
+                fi
+                
+                print_message "用户 $username 创建完成"
+                ;;
+            3)
+                read -p "请输入要删除的用户名: " username
+                read -p "是否删除用户主目录？(y/n): " del_home
+                
+                if [ "$del_home" = "y" ]; then
+                    userdel -r $username
+                else
+                    userdel $username
+                fi
+                
+                print_message "用户 $username 已删除"
+                ;;
+            4)
+                read -p "请输入用户名: " username
+                passwd $username
+                ;;
+            5)
+                read -p "请输入用户名: " username
+                echo "选择操作："
+                echo "1) 添加到sudo组"
+                echo "2) 从sudo组移除"
+                echo "3) 锁定用户"
+                echo "4) 解锁用户"
+                read -p "请选择 [1-4]: " perm_choice
+                
+                case $perm_choice in
+                    1) usermod -aG sudo $username ;;
+                    2) gpasswd -d $username sudo ;;
+                    3) usermod -L $username ;;
+                    4) usermod -U $username ;;
+                    *) print_error "无效的选项" ;;
+                esac
+                ;;
+            6)
+                read -p "请输入用户名: " username
+                echo "用户详细信息："
+                echo "----------------"
+                id $username
+                echo
+                echo "用户组信息："
+                groups $username
+                echo
+                echo "登录记录："
+                last $username | head -n 5
+                ;;
+            7) return ;;
+            *)
+                print_error "无效的选项"
+                sleep 2
+                ;;
+        esac
+        wait_for_key
+    done
 }
 
 # 系统管理与优化菜单
@@ -143,7 +242,7 @@ system_management_menu() {
                     clear
                     echo -e "${BLUE}系统监控与维护${NC}"
                     echo "1) 系统资源监控"
-                    echo "2) 进程管理"
+                    echo "2) 进�����理"
                     echo "3) 日志管理"
                     echo "4) 系统更新"
                     echo "5) 系统清理"
@@ -539,7 +638,7 @@ network_tools() {
         echo -e "${BLUE}================================${NC}"
         echo
         echo "请选择工具："
-        echo "1) 网络连接测�����"
+        echo "1) 网络连接测"
         echo "2) 网络接口管理"
         echo "3) 防火墙管理"
         echo "4) 网络诊断"
@@ -888,7 +987,7 @@ EOF
                             fi
                             ;;
                         4)
-                            read -p "请输入要启用的配置文件名: " config_file
+                            read -p "请输入要启用的配置�������件名: " config_file
                             if [ -f "/etc/nginx/sites-available/$config_file" ]; then
                                 ln -s "/etc/nginx/sites-available/$config_file" "/etc/nginx/sites-enabled/"
                                 print_message "配置已启用"
@@ -1373,7 +1472,7 @@ docker_compose_project_management() {
                     cd "$project_path" && docker compose up -d
                     print_message "项目已启动"
                 else
-                    print_error "未找��� docker-compose.yml 或 compose.yaml 文件"
+                    print_error "未找到 docker-compose.yml 或 compose.yaml 文件"
                 fi
                 ;;
             3)
@@ -1403,9 +1502,9 @@ docker_compose_project_management() {
                 fi
                 ;;
             6)
-                read -p "请输入项目��录路径: " project_path
+                read -p "请输入项目目录路径: " project_path
                 if [ -f "${project_path}/docker-compose.yml" ] || [ -f "${project_path}/compose.yaml" ]; then
-                    read -p "是否同时删��数据卷？(y/n): " del_volumes
+                    read -p "是否同时删除数据卷？(y/n): " del_volumes
                     if [ "$del_volumes" = "y" ] || [ "$del_volumes" = "Y" ]; then
                         cd "$project_path" && docker compose down -v
                     else
@@ -1496,7 +1595,7 @@ install_docker() {
             
         "darwin")
             brew install --cask docker
-            print_message "请手动启动 Docker Desktop"
+            print_message "请手动���动 Docker Desktop"
             return
             ;;
     esac
@@ -1829,7 +1928,7 @@ docker_image_management() {
         echo "4) 清理未使用的镜像"
         echo "5) 导出镜像"
         echo "6) 导入镜像"
-        echo "7) 镜像���细信息"
+        echo "7) 镜像详细信息"
         echo "8) 返回上级菜单"
         echo
         read -p "请输入选项 [1-8]: " choice
@@ -1903,7 +2002,7 @@ docker_network_management() {
                 ;;
             2)
                 read -p "请输入网络名称: " net_name
-                read -p "请���择网络驱动(bridge/overlay/host/none): " net_driver
+                read -p "请选择网络驱动(bridge/overlay/host/none): " net_driver
                 docker network create --driver ${net_driver:-bridge} $net_name
                 ;;
             3)
@@ -2243,11 +2342,12 @@ system_params_optimization() {
     echo -e "${BLUE}系统参数优化${NC}"
     echo -e "${BLUE}================================${NC}"
     echo
-    echo "正在优化系统参数..."
-
+    
+    print_message "正在优化系统参数..."
+    
     # 备份原始配置
     cp /etc/sysctl.conf /etc/sysctl.conf.backup
-
+    
     # 添加优化参数
     cat >> /etc/sysctl.conf <<EOF
 # 文件系统和内存优化
@@ -2272,89 +2372,62 @@ kernel.pid_max = 65535
 kernel.shmmax = 68719476736
 EOF
 
-    # 使用新参数
+    # 应用新参数
     sysctl -p
-
+    
     print_message "系统参数优化完成"
     wait_for_key
 }
 
-# 内存管理优化
+# 内存优化函数
 memory_optimization() {
     clear
-    echo -e "${BLUE}内存管理优化${NC}"
+    echo -e "${BLUE}内存优化${NC}"
     echo -e "${BLUE}================================${NC}"
     echo
-    echo "正在优化内存管理..."
-
+    
+    print_message "正在优化内存管理..."
+    
     # 清理缓存
     sync
-    if ! echo 3 > /proc/sys/vm/drop_caches 2>/dev/null; then
-        print_warning "清理缓存失败，可能需要root权限"
-    fi
+    echo 3 > /proc/sys/vm/drop_caches
     
     # 优化 SWAP 使用
-    if [ -f /proc/sys/vm/swappiness ]; then
-        if ! sysctl -w vm.swappiness=10 >/dev/null 2>&1; then
-            print_warning "设置 swappiness 失败，尝试直接写入"
-            echo 10 > /proc/sys/vm/swappiness 2>/dev/null || print_warning "写入 swappiness 失败"
-        fi
-    else
-        print_warning "未找到 swappiness 配置文件"
-    fi
+    sysctl -w vm.swappiness=10
     
     # 设置最大打开文件数
-    if ! ulimit -n 65535 2>/dev/null; then
-        print_warning "设置文件描述符限制失败，尝试通过配置文件设置"
-    fi
+    ulimit -n 65535
     
     # 添加到系统配置
-    if [ -w /etc/security/limits.conf ]; then
-        cat >> /etc/security/limits.conf <<EOF
+    cat >> /etc/security/limits.conf <<EOF
 * soft nofile 65535
 * hard nofile 65535
 * soft nproc 65535
 * hard nproc 65535
 EOF
-        # 确保配置生效
-        if [ -d /etc/security/limits.d ]; then
-            echo "* soft nofile 65535" > /etc/security/limits.d/90-nproc.conf
-            echo "* hard nofile 65535" >> /etc/security/limits.d/90-nproc.conf
-        fi
-    else
-        print_warning "无法写入 limits.conf，请检查权限"
-    fi
 
     # 优化虚拟内存参数
-    if [ -f /etc/sysctl.conf ]; then
-        {
-            echo "vm.swappiness = 10"
-            echo "vm.vfs_cache_pressure = 50"
-            echo "vm.dirty_ratio = 10"
-            echo "vm.dirty_background_ratio = 5"
-        } >> /etc/sysctl.conf
-        sysctl -p >/dev/null 2>&1 || print_warning "应用 sysctl 参数失败"
-    fi
-
-    # 检查优化结果
-    echo "当前内存配置："
-    echo "Swappiness: $(cat /proc/sys/vm/swappiness 2>/dev/null || echo '未知')"
-    echo "最大文件描述符: $(ulimit -n 2>/dev/null || echo '未知')"
-    echo "当前内存使用情况："
-    free -h
-
-    print_message "内存管理优化完成"
+    cat >> /etc/sysctl.conf <<EOF
+vm.swappiness = 10
+vm.vfs_cache_pressure = 50
+vm.dirty_ratio = 10
+vm.dirty_background_ratio = 5
+EOF
+    sysctl -p
+    
+    print_message "内存优化完成"
     wait_for_key
 }
 
-# 磁盘IO优化
+# 磁盘IO优化函数
 disk_io_optimization() {
     clear
     echo -e "${BLUE}磁盘IO优化${NC}"
     echo -e "${BLUE}================================${NC}"
     echo
-    echo "正在优化磁盘IO..."
-
+    
+    print_message "正在优化磁盘IO性能..."
+    
     # 获取所有磁盘设备
     disks=$(lsblk -d -o NAME | tail -n +2)
     
@@ -2367,7 +2440,7 @@ disk_io_optimization() {
         # 优化预读大小
         echo 4096 > /sys/block/$disk/queue/read_ahead_kb
     done
-
+    
     print_message "磁盘IO优化完成"
     wait_for_key
 }
@@ -2621,11 +2694,13 @@ function system_info() {
     wait_for_key
 }
 
-# 时区选择函数
+# 时区设置函数
 select_timezone() {
     clear
-    echo -e "${BLUE}时区选择${NC}"
+    echo -e "${BLUE}时区设置${NC}"
     echo -e "${BLUE}================================${NC}"
+    echo
+    echo "当前时区: $(timedatectl | grep "Time zone")"
     echo
     echo "常用时区："
     echo "1) 亚洲/上海 (UTC+8)"
@@ -2653,37 +2728,25 @@ select_timezone() {
     esac
 
     # 设置时区
-    timedatectl set-timezone $timezone
-    
-    # 同步时间
-    # 停止NTP服务以避免端口冲突
-    systemctl stop systemd-timesyncd 2>/dev/null
-    systemctl stop ntp 2>/dev/null
-    
-    # 安装并使用chrony进行时间同步
-    if [ -f /etc/debian_version ]; then
-        apt install -y chrony
-    elif [ -f /etc/redhat-release ]; then
-        yum install -y chrony
+    if timedatectl set-timezone $timezone; then
+        print_message "时区已设置为: $timezone"
+        
+        # 同步时间
+        if [ -f /etc/debian_version ]; then
+            apt-get install -y chrony
+        elif [ -f /etc/redhat-release ]; then
+            yum install -y chrony
+        fi
+        
+        systemctl start chronyd
+        systemctl enable chronyd
+        chronyc makestep
+        
+        print_message "系统时间已同步"
+    else
+        print_error "时区设置失败"
     fi
     
-    # 启动chrony服务
-    systemctl start chronyd
-    systemctl enable chronyd
-    
-    # 强制同步时间
-    chronyc makestep
-    
-    # 将系统时间同步到硬件时钟
-    hwclock --systohc
-    
-    print_message "时区已设置为: $timezone"
-    print_message "系统时间已同步"
-    
-    # 显示当前时间信息
-    echo
-    echo "当前系统信息："
-    timedatectl status
     wait_for_key
 }
 
@@ -3294,7 +3357,7 @@ swap_management() {
                 echo "总体使用情况："
                 free -h | grep -i swap
                 echo
-                echo "各Swap分区使用情况："
+                echo "各Swap分区使用情���："
                 swapon --show
                 echo
                 echo "进程Swap使用情况："
@@ -3592,105 +3655,6 @@ log_management() {
             ;;
     esac
     wait_for_key
-}
-
-# 用户管理函数
-user_management() {
-    while true; do
-        clear
-        echo -e "${BLUE}用户管理${NC}"
-        echo -e "${BLUE}================================${NC}"
-        echo
-        echo "请选择操作："
-        echo "1) 查看所有用户"
-        echo "2) 添加新用户"
-        echo "3) 删除用户"
-        echo "4) 修改用户密码"
-        echo "5) 修改用户权限"
-        echo "6) 查看用户详情"
-        echo "7) 返回上级菜单"
-        echo
-        read -p "请输入选项 [1-7]: " choice
-
-        case $choice in
-            1)
-                echo "系统用户列表："
-                echo "----------------"
-                awk -F: '$3 >= 1000 && $3 != 65534 {print "用户名: "$1"\t UID: "$3"\t 主目录: "$6}' /etc/passwd
-                ;;
-            2)
-                read -p "请输入新用户名: " username
-                read -p "是否创建家目录？(y/n): " create_home
-                read -p "是否添加到sudo组？(y/n): " add_sudo
-                
-                if [ "$create_home" = "y" ]; then
-                    home_opt="-m"
-                else
-                    home_opt=""
-                fi
-                
-                useradd $home_opt $username
-                passwd $username
-                
-                if [ "$add_sudo" = "y" ]; then
-                    usermod -aG sudo $username
-                fi
-                
-                print_message "用户 $username 创建完成"
-                ;;
-            3)
-                read -p "请输入要删除的用户名: " username
-                read -p "是否删除用户主目录？(y/n): " del_home
-                
-                if [ "$del_home" = "y" ]; then
-                    userdel -r $username
-                else
-                    userdel $username
-                fi
-                
-                print_message "用户 $username 已删除"
-                ;;
-            4)
-                read -p "请输入用户名: " username
-                passwd $username
-                ;;
-            5)
-                read -p "请输入用户名: " username
-                echo "���择操作："
-                echo "1) 添加到sudo组"
-                echo "2) 从sudo组移除"
-                echo "3) 锁定用户"
-                echo "4) 解锁用户"
-                read -p "请选择 [1-4]: " perm_choice
-                
-                case $perm_choice in
-                    1) usermod -aG sudo $username ;;
-                    2) gpasswd -d $username sudo ;;
-                    3) usermod -L $username ;;
-                    4) usermod -U $username ;;
-                    *) print_error "无效的选项" ;;
-                esac
-                ;;
-            6)
-                read -p "请输入用户名: " username
-                echo "用户详细信息："
-                echo "----------------"
-                id $username
-                echo
-                echo "用户组信息："
-                groups $username
-                echo
-                echo "登录记录："
-                last $username | head -n 5
-                ;;
-            7) return ;;
-            *)
-                print_error "无效的选项"
-                sleep 2
-                ;;
-        esac
-        wait_for_key
-    done
 }
 
 # 主机名管理函数
