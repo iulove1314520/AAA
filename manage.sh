@@ -1519,7 +1519,7 @@ docker_system_maintenance() {
         echo "请选择操作："
         echo "1) 查看Docker系统信息"
         echo "2) 查看Docker磁盘使用情况"
-        echo "3) 清理未使用的资源"
+        echo "3) 清理未使用��资源"
         echo "4) 清理构建缓存"
         echo "5) 重启Docker服务"
         echo "6) 更新Docker版本"
@@ -2010,7 +2010,7 @@ nginx_log_management() {
         echo
         echo "请选择操作："
         echo "1) 查看访问日志"
-        echo "2) 查看错误日志"
+        echo "2) 查看��误日志"
         echo "3) 日志分析"
         echo "4) 配置日志轮转"
         echo "5) 清理旧日志"
@@ -2255,3 +2255,170 @@ main() {
 
 # 执行主函数
 main
+
+# 软件源管理函数
+change_mirrors() {
+    while true; do
+        clear
+        echo -e "${BLUE}软件源管理${NC}"
+        echo -e "${BLUE}================================${NC}"
+        echo
+        echo "请选择操作："
+        echo "1) 备份当前软件源"
+        echo "2) 更换软件源"
+        echo "3) 还原软件源"
+        echo "4) 更新软件源"
+        echo "5) 返回上级菜单"
+        echo
+        read -p "请输入选项 [1-5]: " choice
+
+        case $choice in
+            1)
+                backup_file "/etc/apt/sources.list" || backup_file "/etc/yum.repos.d/CentOS-Base.repo"
+                ;;
+            2)
+                local system_type=$(check_system_type)
+                case $system_type in
+                    debian)
+                        echo "选择软件源："
+                        echo "1) 阿里云"
+                        echo "2) 清华大学"
+                        echo "3) 中科大"
+                        echo "4) 华为云"
+                        read -p "请选择 [1-4]: " mirror_choice
+                        
+                        # 备份原始源
+                        backup_file "/etc/apt/sources.list"
+                        
+                        # 获取系统代号
+                        codename=$(lsb_release -cs)
+                        
+                        case $mirror_choice in
+                            1) # 阿里云
+                                cat > /etc/apt/sources.list <<EOF
+deb http://mirrors.aliyun.com/debian/ ${codename} main contrib non-free
+deb http://mirrors.aliyun.com/debian/ ${codename}-updates main contrib non-free
+deb http://mirrors.aliyun.com/debian/ ${codename}-backports main contrib non-free
+deb http://mirrors.aliyun.com/debian-security ${codename}-security main contrib non-free
+EOF
+                                ;;
+                            2) # 清华大学
+                                cat > /etc/apt/sources.list <<EOF
+deb https://mirrors.tuna.tsinghua.edu.cn/debian/ ${codename} main contrib non-free
+deb https://mirrors.tuna.tsinghua.edu.cn/debian/ ${codename}-updates main contrib non-free
+deb https://mirrors.tuna.tsinghua.edu.cn/debian/ ${codename}-backports main contrib non-free
+deb https://mirrors.tuna.tsinghua.edu.cn/debian-security ${codename}-security main contrib non-free
+EOF
+                                ;;
+                            3) # 中科大
+                                cat > /etc/apt/sources.list <<EOF
+deb https://mirrors.ustc.edu.cn/debian/ ${codename} main contrib non-free
+deb https://mirrors.ustc.edu.cn/debian/ ${codename}-updates main contrib non-free
+deb https://mirrors.ustc.edu.cn/debian/ ${codename}-backports main contrib non-free
+deb https://mirrors.ustc.edu.cn/debian-security ${codename}-security main contrib non-free
+EOF
+                                ;;
+                            4) # 华为云
+                                cat > /etc/apt/sources.list <<EOF
+deb https://mirrors.huaweicloud.com/debian/ ${codename} main contrib non-free
+deb https://mirrors.huaweicloud.com/debian/ ${codename}-updates main contrib non-free
+deb https://mirrors.huaweicloud.com/debian/ ${codename}-backports main contrib non-free
+deb https://mirrors.huaweicloud.com/debian-security ${codename}-security main contrib non-free
+EOF
+                                ;;
+                            *)
+                                print_error "无效的选项"
+                                return 1
+                                ;;
+                        esac
+                        
+                        # 更新软件源
+                        apt-get update
+                        ;;
+                    redhat)
+                        echo "选择软件源："
+                        echo "1) 阿里云"
+                        echo "2) 清华大学"
+                        echo "3) 中科大"
+                        echo "4) 华为云"
+                        read -p "请选择 [1-4]: " mirror_choice
+                        
+                        # 备份原始源
+                        backup_file "/etc/yum.repos.d/CentOS-Base.repo"
+                        
+                        case $mirror_choice in
+                            1) # 阿里云
+                                curl -o /etc/yum.repos.d/CentOS-Base.repo https://mirrors.aliyun.com/repo/Centos-$(rpm -E %{rhel})-x86_64.repo
+                                ;;
+                            2) # 清华大学
+                                curl -o /etc/yum.repos.d/CentOS-Base.repo https://mirrors.tuna.tsinghua.edu.cn/repo/Centos-$(rpm -E %{rhel})-x86_64.repo
+                                ;;
+                            3) # 中科大
+                                curl -o /etc/yum.repos.d/CentOS-Base.repo https://mirrors.ustc.edu.cn/repo/Centos-$(rpm -E %{rhel})-x86_64.repo
+                                ;;
+                            4) # 华为云
+                                curl -o /etc/yum.repos.d/CentOS-Base.repo https://mirrors.huaweicloud.com/repository/conf/CentOS-$(rpm -E %{rhel})-x86_64.repo
+                                ;;
+                            *)
+                                print_error "无效的选项"
+                                return 1
+                                ;;
+                        esac
+                        
+                        # 更新软件源缓存
+                        yum clean all
+                        yum makecache
+                        ;;
+                    *)
+                        print_error "不支持的系统类型"
+                        return 1
+                        ;;
+                esac
+                print_message "软件源更换完成"
+                ;;
+            3)
+                local system_type=$(check_system_type)
+                case $system_type in
+                    debian)
+                        if [ -f "/etc/apt/sources.list.backup" ]; then
+                            cp /etc/apt/sources.list.backup /etc/apt/sources.list
+                            apt-get update
+                            print_message "软件源已还原"
+                        else
+                            print_error "未找到备份文件"
+                        fi
+                        ;;
+                    redhat)
+                        if [ -f "/etc/yum.repos.d/CentOS-Base.repo.backup" ]; then
+                            cp /etc/yum.repos.d/CentOS-Base.repo.backup /etc/yum.repos.d/CentOS-Base.repo
+                            yum clean all
+                            yum makecache
+                            print_message "软件源已还原"
+                        else
+                            print_error "未找到备份文件"
+                        fi
+                        ;;
+                esac
+                ;;
+            4)
+                local system_type=$(check_system_type)
+                case $system_type in
+                    debian)
+                        apt-get update
+                        ;;
+                    redhat)
+                        yum clean all
+                        yum makecache
+                        ;;
+                esac
+                print_message "软件源已更新"
+                ;;
+            5) return ;;
+            *)
+                print_error "无效的选项"
+                sleep 2
+                ;;
+        esac
+        wait_for_key
+    done
+}
