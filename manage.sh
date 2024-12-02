@@ -2160,3 +2160,85 @@ EOF
     
     wait_for_key
 }
+
+# 主菜单函数
+show_main_menu() {
+    while true; do
+        clear
+        echo -e "${BLUE}$SCRIPT_NAME v$VERSION${NC}"
+        echo -e "${BLUE}================================${NC}"
+        echo
+        echo "主菜单："
+        echo "1) 系统管理与优化"
+        echo "2) Docker管理"
+        echo "3) Nginx管理"
+        echo "4) 网络工具"
+        echo "5) 服务管理"
+        echo "6) 退出"
+        echo
+        read -p "请输入选项 [1-6]: " choice
+
+        case $choice in
+            1) system_management_menu ;;
+            2) docker_management_menu ;;
+            3) nginx_management_menu ;;
+            4) network_tools_menu ;;
+            5) service_management_menu ;;
+            6) 
+                echo "感谢使用，再见！"
+                exit 0
+                ;;
+            *)
+                print_error "无效的选项"
+                sleep 2
+                ;;
+        esac
+    done
+}
+
+# 系统管理菜单
+system_management_menu() {
+    while true; do
+        clear
+        echo -e "${BLUE}系统管理与优化${NC}"
+        echo -e "${BLUE}================================${NC}"
+        echo
+        echo "请选择操作："
+        echo "1) 系统基本配置"
+        echo "2) 系统性能优化"
+        echo "3) 系统监控与维护"
+        echo "4) 系统安全管理"
+        echo "5) 软件源管理"
+        echo "6) 返回主菜单"
+        echo
+        read -p "请输入选项 [1-6]: " choice
+
+        case $choice in
+            1) system_basic_config_menu ;;
+            2) system_optimization_menu ;;
+            3) system_monitor_menu ;;
+            4) security_management_menu ;;
+            5) change_mirrors ;;
+            6) return ;;
+            *)
+                print_error "无效的选项"
+                sleep 2
+                ;;
+        esac
+    done
+}
+
+# 主函数
+main() {
+    # 检查root权限
+    check_root
+    
+    # 初始化
+    init
+    
+    # 显示主菜单
+    show_main_menu
+}
+
+# 执行主函数
+main
