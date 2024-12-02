@@ -802,7 +802,7 @@ system_config() {
                         fi
                         ;;
                     2)
-                        read -p "请输入要修改的主机名: " old_hostname
+                        read -p "请输入要修改的主名: " old_hostname
                         read -p "请输入新的IP地址: " new_ip
                         sed -i "s/.*$old_hostname/$new_ip    $old_hostname/" /etc/hosts
                         print_message "hosts记录已修改"
