@@ -186,9 +186,10 @@ system_management_menu() {
         echo "2) 系统性能优化"
         echo "3) 系统监控与维护"
         echo "4) 系统安全管理"
-        echo "5) 返回主菜单"
+        echo "5) 软件源管理"
+        echo "6) 返回主菜单"
         echo
-        read -p "请输入选项 [1-5]: " choice
+        read -p "请输入选项 [1-6]: " choice
 
         case $choice in
             1)
@@ -285,7 +286,8 @@ system_management_menu() {
                     wait_for_key
                 done
                 ;;
-            5) return ;;
+            5) change_mirrors ;;
+            6) return ;;
             *)
                 print_error "无效的选项"
                 sleep 2
@@ -573,7 +575,7 @@ process_management() {
                 read -p "请输入进程PID: " pid
                 read -p "请输入新的优先级(-20到19): " priority
                 renice $priority $pid
-                print_message "已修改进程 $pid 的优先级为 $priority"
+                print_message "已修改��程 $pid 的优先级为 $priority"
                 ;;
             6) return ;;
             *)
@@ -987,7 +989,7 @@ EOF
                             fi
                             ;;
                         4)
-                            read -p "请输入要启用的配置�������件名: " config_file
+                            read -p "请输入要启用的配置���������件名: " config_file
                             if [ -f "/etc/nginx/sites-available/$config_file" ]; then
                                 ln -s "/etc/nginx/sites-available/$config_file" "/etc/nginx/sites-enabled/"
                                 print_message "配置已启用"
@@ -1218,7 +1220,7 @@ EOF
                 ;;
             8)
                 clear
-                echo "Nginx状态信息："
+                echo "Nginx状态��息："
                 echo "----------------"
                 echo "进程信息："
                 ps -eo user,group,comm | grep nginx
@@ -2882,7 +2884,7 @@ system_maintenance_menu() {
         echo
         echo "请选择操作："
         echo "1) 系统更新"
-        echo "2) 系统清理"
+        echo "2) ���统清理"
         echo "3) 系统修复"
         echo "4) 日志管理"
         echo "5) 磁盘检查"
@@ -2958,7 +2960,7 @@ cron_management() {
                 crontab -l
                 ;;
             2)
-                echo "添加新的定时任务"
+                echo "添��新的定时任务"
                 echo "格式: 分 时 日 月 星期 命令"
                 read -p "请输入定时任务: " new_task
                 (crontab -l 2>/dev/null; echo "$new_task") | crontab -
@@ -3194,7 +3196,7 @@ firewall_management() {
 interface_management() {
     while true; do
         clear
-        echo -e "${BLUE}网络接口管理${NC}"
+        echo -e "${BLUE}网���接口管理${NC}"
         echo -e "${BLUE}================================${NC}"
         echo
         echo "请选择操作："
@@ -3693,7 +3695,7 @@ manage_hosts() {
         cat /etc/hosts
         echo
         echo "请选择操作："
-        echo "1) 添加新记录"
+        echo "1) 添加新��录"
         echo "2) 修改记录"
         echo "3) 删除记录"
         echo "4) 返回上级菜单"
@@ -3712,7 +3714,7 @@ manage_hosts() {
                 fi
                 ;;
             2)
-                read -p "请输入要修改的主机名: " old_hostname
+                read -p "请输���要修改的主���名: " old_hostname
                 read -p "请输入新的IP地址: " new_ip
                 sed -i "/[[:space:]]$old_hostname/c\\$new_ip $old_hostname" /etc/hosts
                 print_message "记录已修改"
@@ -3816,4 +3818,169 @@ LOG_LEVEL="INFO"
 MAX_LOG_SIZE="100M"
 EOF
     fi
+}
+
+# 换源功能函数
+change_mirrors() {
+    clear
+    echo -e "${BLUE}软件源管理${NC}"
+    echo -e "${BLUE}================================${NC}"
+    echo
+    echo "请选择操作："
+    echo "1) 使用 LinuxMirrors 脚本换源(推荐)"
+    echo "2) 手动选择镜像源"
+    echo "3) 备份当前软件源"
+    echo "4) 还原软件源"
+    echo "5) 返回上级菜单"
+    echo
+    read -p "请输入选项 [1-5]: " choice
+
+    case $choice in
+        1)
+            echo "请选择换源方式："
+            echo "1) 使用 GitHuB 源"
+            echo "2) 使用 Gitee 源"
+            echo "3) 使用 LinuxMirrors.cn 源"
+            read -p "请选择 [1-3]: " source_choice
+            
+            case $source_choice in
+                1)
+                    bash <(curl -sSL https://raw.githubusercontent.com/SuperManito/LinuxMirrors/main/ChangeMirrors.sh) --abroad
+                    ;;
+                2)
+                    bash <(curl -sSL https://gitee.com/SuperManito/LinuxMirrors/raw/main/ChangeMirrors.sh) --abroad
+                    ;;
+                3)
+                    bash <(curl -sSL https://linuxmirrors.cn/main.sh) --abroad
+                    ;;
+                *)
+                    print_error "无效的选项"
+                    ;;
+            esac
+            ;;
+        2)
+            if [ -f /etc/debian_version ]; then
+                # Debian/Ubuntu系统
+                echo "请选择镜像源："
+                echo "1) 阿里云镜像源"
+                echo "2) 清华大学镜像源"
+                echo "3) 中科大镜像源"
+                echo "4) 华为云镜像源"
+                read -p "请选择 [1-4]: " mirror_choice
+
+                # 备份原始源文件
+                cp /etc/apt/sources.list /etc/apt/sources.list.backup.$(date +%Y%m%d)
+
+                case $mirror_choice in
+                    1)
+                        # 阿里云镜像源
+                        sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list
+                        sed -i 's/security.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list
+                        ;;
+                    2)
+                        # 清华镜像源
+                        sed -i 's/deb.debian.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list
+                        sed -i 's/security.debian.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list
+                        ;;
+                    3)
+                        # 中科大镜像源
+                        sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list
+                        sed -i 's/security.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list
+                        ;;
+                    4)
+                        # 华为云镜像源
+                        sed -i 's/deb.debian.org/repo.huaweicloud.com/g' /etc/apt/sources.list
+                        sed -i 's/security.debian.org/repo.huaweicloud.com/g' /etc/apt/sources.list
+                        ;;
+                    *)
+                        print_error "无效的选项"
+                        return
+                        ;;
+                esac
+
+                # 更新软件源
+                apt-get update
+
+            elif [ -f /etc/redhat-release ]; then
+                # RHEL/CentOS系统
+                echo "请选择镜像源："
+                echo "1) 阿里云镜像源"
+                echo "2) 清华大学镜像源"
+                echo "3) 中科大镜像源"
+                echo "4) 华为云镜像源"
+                read -p "请选择 [1-4]: " mirror_choice
+
+                # 备份原始源文件
+                mkdir -p /etc/yum.repos.d/backup
+                cp /etc/yum.repos.d/*.repo /etc/yum.repos.d/backup/
+
+                case $mirror_choice in
+                    1)
+                        # 阿里云镜像源
+                        curl -o /etc/yum.repos.d/CentOS-Base.repo https://mirrors.aliyun.com/repo/Centos-$(rpm -E %{rhel})-x86_64.repo
+                        ;;
+                    2)
+                        # 清华镜像源
+                        curl -o /etc/yum.repos.d/CentOS-Base.repo https://mirrors.tuna.tsinghua.edu.cn/repo/Centos-$(rpm -E %{rhel})-x86_64.repo
+                        ;;
+                    3)
+                        # 中科大镜像源
+                        curl -o /etc/yum.repos.d/CentOS-Base.repo https://mirrors.ustc.edu.cn/repo/Centos-$(rpm -E %{rhel})-x86_64.repo
+                        ;;
+                    4)
+                        # 华为云镜像源
+                        curl -o /etc/yum.repos.d/CentOS-Base.repo https://repo.huaweicloud.com/repository/conf/CentOS-$(rpm -E %{rhel})-x86_64.repo
+                        ;;
+                    *)
+                        print_error "无效的选项"
+                        return
+                        ;;
+                esac
+
+                # 更新软件源缓存
+                yum clean all
+                yum makecache
+            fi
+            ;;
+        3)
+            # 备份当前软件源
+            if [ -f /etc/debian_version ]; then
+                cp /etc/apt/sources.list /etc/apt/sources.list.backup.$(date +%Y%m%d)
+                print_message "已备份软件源配置到 /etc/apt/sources.list.backup.$(date +%Y%m%d)"
+            elif [ -f /etc/redhat-release ]; then
+                mkdir -p /etc/yum.repos.d/backup.$(date +%Y%m%d)
+                cp /etc/yum.repos.d/*.repo /etc/yum.repos.d/backup.$(date +%Y%m%d)/
+                print_message "已备份软件源配置到 /etc/yum.repos.d/backup.$(date +%Y%m%d)/"
+            fi
+            ;;
+        4)
+            # 还原软件源
+            if [ -f /etc/debian_version ]; then
+                latest_backup=$(ls -t /etc/apt/sources.list.backup.* | head -n1)
+                if [ -n "$latest_backup" ]; then
+                    cp "$latest_backup" /etc/apt/sources.list
+                    print_message "已还原软件源配置"
+                    apt-get update
+                else
+                    print_error "未找到备份文件"
+                fi
+            elif [ -f /etc/redhat-release ]; then
+                latest_backup=$(ls -td /etc/yum.repos.d/backup.*/ | head -n1)
+                if [ -n "$latest_backup" ]; then
+                    cp "$latest_backup"/*.repo /etc/yum.repos.d/
+                    print_message "已还原软件源配置"
+                    yum clean all
+                    yum makecache
+                else
+                    print_error "未找到备份文件"
+                fi
+            fi
+            ;;
+        5) return ;;
+        *)
+            print_error "无效的选项"
+            sleep 2
+            ;;
+    esac
+    wait_for_key
 }
