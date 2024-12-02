@@ -668,14 +668,56 @@ change_hostname() {
     read -p "请输入新的主机名: " new_hostname
     
     if [ -n "$new_hostname" ]; then
+        # 备份hosts文件
+        sudo cp /etc/hosts /etc/hosts.bak
+        
         # 修改主机名
-        if hostnamectl set-hostname "$new_hostname"; then
-            # 更新 /etc/hosts 文件
-            sudo sed -i "s/127.0.1.1.*$current_hostname/127.0.1.1\t$new_hostname/g" /etc/hosts
+        if sudo hostnamectl set-hostname "$new_hostname"; then
+            # 更新 /etc/hosts 文件中的所有相关条目
+            # 1. 更新 127.0.1.1 对应的主机名
+            if grep -q "^127.0.1.1" /etc/hosts; then
+                sudo sed -i "s/^127.0.1.1.*$/127.0.1.1\t$new_hostname/g" /etc/hosts
+            else
+                # 如果不存在 127.0.1.1 条目，则添加
+                echo "127.0.1.1\t$new_hostname" | sudo tee -a /etc/hosts > /dev/null
+            fi
+            
+            # 2. 更新 127.0.0.1 对应的主机名（如果包含旧主机名）
+            if grep -q "^127.0.0.1.*$current_hostname" /etc/hosts; then
+                sudo sed -i "s/\b$current_hostname\b/$new_hostname/g" /etc/hosts
+            fi
+            
+            # 3. 确保基本的 localhost 条目存在
+            if ! grep -q "^127.0.0.1.*localhost" /etc/hosts; then
+                echo "127.0.0.1\tlocalhost" | sudo tee -a /etc/hosts > /dev/null
+            fi
+            
             echo "主机名已成功修改为：$new_hostname"
-            echo "请注意：某些服务可能需要重启才能生效"
+            echo "hosts文件已更新"
+            echo
+            echo "当前hosts文件内容："
+            echo "-----------------------------------"
+            cat /etc/hosts
+            echo "-----------------------------------"
+            echo "注意：某些服务可能需要重启才能生效"
+            
+            # 提示是否需要恢复
+            read -p "是否确认更改？(y/n): " confirm
+            if [[ ! $confirm =~ ^[Yy]$ ]]; then
+                sudo cp /etc/hosts.bak /etc/hosts
+                sudo hostnamectl set-hostname "$current_hostname"
+                echo "已恢复到原始设置"
+            else
+                echo "更改已保存"
+            fi
+            
+            # 清理备份文件
+            sudo rm -f /etc/hosts.bak
         else
             echo "修改主机名失败，请检查权限！"
+            # 恢复hosts文件
+            sudo cp /etc/hosts.bak /etc/hosts
+            sudo rm -f /etc/hosts.bak
         fi
     else
         echo "主机名不能为空！"
