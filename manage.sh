@@ -560,7 +560,7 @@ system_config() {
                             echo "$ip       $hostname" >> /etc/hosts
                             print_message "hosts记录已添加"
                         else
-                            print_error "IP或主机名不能�����空"
+                            print_error "IP或主机名不能�������空"
                         fi
                         ;;
                     2)
@@ -2136,7 +2136,7 @@ kernel.pid_max = 65535
 kernel.shmmax = 68719476736
 EOF
 
-    # 应用新参数
+    # ��用新参数
     sysctl -p
 
     print_message "系统参数优化完成"
@@ -2396,7 +2396,7 @@ function install_tools() {
         yum install -y wget curl vim nano htop net-tools iftop iotop
     fi
     
-    print_message "工具安装完成"
+    print_message "工具安装���成"
     wait_for_key
 }
 
@@ -2949,7 +2949,7 @@ interface_management() {
             4)
                 ip -br link show
                 read -p "请输入要配置的接口名称: " interface
-                read -p "请输入IP地址(例如: 192.168.1.100/24): " ip_addr
+                read -p "请输入IP地���(例如: 192.168.1.100/24): " ip_addr
                 ip addr add $ip_addr dev $interface
                 print_message "IP地址已配置"
                 ;;
