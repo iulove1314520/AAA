@@ -1,5 +1,22 @@
 #!/bin/bash
 
+# 在脚本开头添加
+set -e  # 遇到错误立即退出
+trap 'echo "脚本执行出错，行号: $LINENO"' ERR
+
+# 清理函数
+cleanup() {
+    # 清理临时文件
+    rm -f /tmp/manage_script_*
+    # 恢复终端设置
+    stty echo
+    exit 0
+}
+
+# 捕获信号
+trap cleanup EXIT
+trap 'echo "收到中断信号，正在清理..."; cleanup' INT TERM
+
 # 模块说明
 # 1. 基础工具函数
 # 2. Docker管理模块
@@ -522,7 +539,7 @@ network_tools() {
         echo -e "${BLUE}================================${NC}"
         echo
         echo "请选择工具："
-        echo "1) 网络连接测试"
+        echo "1) 网络连接测�����"
         echo "2) 网络接口管理"
         echo "3) 防火墙管理"
         echo "4) 网络诊断"
@@ -1356,7 +1373,7 @@ docker_compose_project_management() {
                     cd "$project_path" && docker compose up -d
                     print_message "项目已启动"
                 else
-                    print_error "未找到 docker-compose.yml 或 compose.yaml 文件"
+                    print_error "未找��� docker-compose.yml 或 compose.yaml 文件"
                 fi
                 ;;
             3)
@@ -1386,9 +1403,9 @@ docker_compose_project_management() {
                 fi
                 ;;
             6)
-                read -p "请输入项目目录路径: " project_path
+                read -p "请输入项目��录路径: " project_path
                 if [ -f "${project_path}/docker-compose.yml" ] || [ -f "${project_path}/compose.yaml" ]; then
-                    read -p "是否同时删除数据卷？(y/n): " del_volumes
+                    read -p "是否同时删��数据卷？(y/n): " del_volumes
                     if [ "$del_volumes" = "y" ] || [ "$del_volumes" = "Y" ]; then
                         cd "$project_path" && docker compose down -v
                     else
@@ -1812,7 +1829,7 @@ docker_image_management() {
         echo "4) 清理未使用的镜像"
         echo "5) 导出镜像"
         echo "6) 导入镜像"
-        echo "7) 镜像详细信息"
+        echo "7) 镜像���细信息"
         echo "8) 返回上级菜单"
         echo
         read -p "请输入选项 [1-8]: " choice
@@ -1886,7 +1903,7 @@ docker_network_management() {
                 ;;
             2)
                 read -p "请输入网络名称: " net_name
-                read -p "请选择网络驱动(bridge/overlay/host/none): " net_driver
+                read -p "请���择网络驱动(bridge/overlay/host/none): " net_driver
                 docker network create --driver ${net_driver:-bridge} $net_name
                 ;;
             3)
@@ -2047,44 +2064,43 @@ network_monitoring() {
         echo -e "${BLUE}网络监控${NC}"
         echo -e "${BLUE}================================${NC}"
         echo
-        echo "请选择操作："
-        echo "1) 实时网络流量监控"
-        echo "2) 网络连接统计"
-        echo "3) 端口监听状态"
-        echo "4) 网络带宽测试"
-        echo "5) 网络延迟监控"
-        echo "6) 返回主菜单"
+        echo "请选择监控项目："
+        echo "1) 实时流量监控"
+        echo "2) 连接状态监控"
+        echo "3) 网络接口状态"
+        echo "4) 网络统计信息"
+        echo "5) 返回上级菜单"
         echo
-        read -p "请输入选项 [1-6]: " choice
+        read -p "请输入选项 [1-5]: " choice
 
         case $choice in
             1)
-                echo "按 Ctrl+C 退出监控"
+                if ! command -v iftop &> /dev/null; then
+                    print_message "正在安装iftop..."
+                    if [ -f /etc/debian_version ]; then
+                        apt-get install -y iftop
+                    elif [ -f /etc/redhat-release ]; then
+                        yum install -y iftop
+                    fi
+                fi
+                echo "按q退出监控"
                 sleep 2
-                iftop -P
+                iftop
                 ;;
             2)
-                echo "活动连接统计："
-                ss -s
-                echo
-                echo "TCP 连接状态统计："
-                netstat -n | awk '/^tcp/ {++state[$NF]} END {for(key in state) print key,"\t",state[key]}'
+                watch -n 1 "netstat -ant | awk 'NR>2{print \$6}' | sort | uniq -c | sort -n"
                 ;;
             3)
-                echo "当前监听的端口："
-                netstat -tulpn | grep LISTEN
+                ip -s link
                 ;;
             4)
-                read -p "请输入目标服务器地址: " target_server
-                echo "开始测试带宽..."
-                iperf3 -c $target_server
+                echo "TCP连接统计："
+                netstat -st
+                echo
+                echo "UDP连接统计："
+                netstat -su
                 ;;
-            5)
-                read -p "请输入要监控的目标地址: " target_host
-                echo "开始监控网络延迟(按 Ctrl+C 停止)..."
-                ping $target_host
-                ;;
-            6) return ;;
+            5) return ;;
             *)
                 print_error "无效的选项"
                 sleep 2
@@ -2488,15 +2504,29 @@ function system_tools() {
 # 系统更新
 function system_update() {
     clear
-    blue "系统更新"
-    blue "================================"
+    echo -e "${BLUE}系统更新${NC}"
+    echo -e "${BLUE}================================${NC}"
     echo
     
     if [ -f /etc/debian_version ]; then
-        apt update -y
-        apt upgrade -y
+        print_message "更新软件包列表..."
+        apt-get update
+        
+        print_message "升级系统..."
+        apt-get upgrade -y
+        
+        print_message "升级内核和重要组件..."
+        apt-get dist-upgrade -y
+        
+        print_message "清理不需要的包..."
+        apt-get autoremove -y
+        apt-get clean
     elif [ -f /etc/redhat-release ]; then
+        print_message "更新系统..."
         yum update -y
+        
+        print_message "清理缓存..."
+        yum clean all
     fi
     
     print_message "系统更新完成"
@@ -2523,26 +2553,31 @@ function install_tools() {
 # 系统清理
 function system_clean() {
     clear
-    blue "系统清理"
-    blue "================================"
+    echo -e "${BLUE}系统清理${NC}"
+    echo -e "${BLUE}================================${NC}"
     echo
     
+    print_message "清理系统缓存..."
+    sync
+    echo 3 > /proc/sys/vm/drop_caches
+    
+    print_message "清理软件包缓存..."
     if [ -f /etc/debian_version ]; then
-        apt clean
-        apt autoclean
-        apt autoremove -y
+        apt-get clean
+        apt-get autoremove -y
     elif [ -f /etc/redhat-release ]; then
         yum clean all
         yum autoremove -y
     fi
     
-    # 清理日志
-    find /var/log -type f -name "*.log*" -exec rm -f {} \;
-    
-    # 清理系统临时文件
+    print_message "清理临时文件..."
     rm -rf /tmp/*
     
-    print_message "系统清理完成"
+    print_message "清理日志文件..."
+    find /var/log -type f -name "*.log.*" -delete
+    find /var/log -type f -name "*.gz" -delete
+    
+    print_message "清理系统垃圾完成"
     wait_for_key
 }
 
@@ -2691,31 +2726,88 @@ system_optimization_menu() {
         echo -e "${BLUE}系统优化${NC}"
         echo -e "${BLUE}================================${NC}"
         echo
-        echo "请选择优化项目："
+        echo "请选择操作："
         echo "1) 系统参数优化"
-        echo "2) 内存管理优化"
-        echo "3) 磁盘IO优化"
-        echo "4) 网络性能优化"
+        echo "2) 性能优化"
+        echo "3) 网络优化"
+        echo "4) 磁盘优化"
         echo "5) 服务优化"
-        echo "6) BBR加速安装"
-        echo "7) 返回上级菜单"
+        echo "6) 返回上级菜单"
         echo
-        read -p "请输入选项 [1-7]: " choice
+        read -p "请输入选项 [1-6]: " choice
 
         case $choice in
             1) system_params_optimization ;;
-            2) memory_optimization ;;
-            3) disk_io_optimization ;;
-            4) network_optimization ;;
+            2) performance_optimization ;;
+            3) network_optimization ;;
+            4) disk_optimization ;;
             5) service_optimization ;;
-            6) install_bbr ;;
-            7) return ;;
+            6) return ;;
             *)
                 print_error "无效的选项"
                 sleep 2
                 ;;
         esac
+        wait_for_key
     done
+}
+
+# 性能优化函数
+performance_optimization() {
+    clear
+    echo -e "${BLUE}性能优化${NC}"
+    echo -e "${BLUE}================================${NC}"
+    echo
+    
+    print_message "正在优化系统性能..."
+    
+    # CPU调度优化
+    echo "performance" > /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+    
+    # 内存优化
+    sysctl -w vm.swappiness=10
+    sysctl -w vm.vfs_cache_pressure=50
+    
+    # 网络优化
+    sysctl -w net.core.somaxconn=65535
+    sysctl -w net.ipv4.tcp_max_syn_backlog=65535
+    
+    # IO优化
+    for disk in $(lsblk -d -o NAME | tail -n +2); do
+        echo deadline > /sys/block/$disk/queue/scheduler
+        echo 4096 > /sys/block/$disk/queue/read_ahead_kb
+    done
+    
+    print_message "性能优化完成"
+    wait_for_key
+}
+
+# 磁盘优化函数
+disk_optimization() {
+    clear
+    echo -e "${BLUE}磁盘优化${NC}"
+    echo -e "${BLUE}================================${NC}"
+    echo
+    
+    print_message "正在优化磁盘性能..."
+    
+    # 调整预读大小
+    for disk in $(lsblk -d -o NAME | tail -n +2); do
+        echo 4096 > /sys/block/$disk/queue/read_ahead_kb
+    done
+    
+    # 开启TRIM（如果是SSD）
+    if which fstrim >/dev/null; then
+        fstrim -av
+    fi
+    
+    # 优化文件系统
+    for fs in $(df -h --output=target | tail -n +2); do
+        tune2fs -o journal_data_writeback $(findmnt -n -o SOURCE $fs)
+    done
+    
+    print_message "磁盘优化完成"
+    wait_for_key
 }
 
 # 系统维护菜单
@@ -2725,7 +2817,7 @@ system_maintenance_menu() {
         echo -e "${BLUE}系统维护${NC}"
         echo -e "${BLUE}================================${NC}"
         echo
-        echo "请选择维护项目："
+        echo "请选择操作："
         echo "1) 系统更新"
         echo "2) 系统清理"
         echo "3) 系统修复"
@@ -2747,6 +2839,7 @@ system_maintenance_menu() {
                 sleep 2
                 ;;
         esac
+        wait_for_key
     done
 }
 
@@ -2754,14 +2847,14 @@ system_maintenance_menu() {
 backup_restore_menu() {
     while true; do
         clear
-        echo -e "${BLUE}系统备份与还原${NC}"
+        echo -e "${BLUE}备份还原${NC}"
         echo -e "${BLUE}================================${NC}"
         echo
         echo "请选择操作："
         echo "1) 系统备份"
         echo "2) 系统还原"
         echo "3) 备份管理"
-        echo "4) 自动备份设置"
+        echo "4) 定时备份设置"
         echo "5) 返回上级菜单"
         echo
         read -p "请输入选项 [1-5]: " choice
@@ -2770,13 +2863,14 @@ backup_restore_menu() {
             1) system_backup ;;
             2) system_restore ;;
             3) backup_management ;;
-            4) auto_backup_config ;;
+            4) schedule_backup ;;
             5) return ;;
             *)
                 print_error "无效的选项"
                 sleep 2
                 ;;
         esac
+        wait_for_key
     done
 }
 
@@ -3498,4 +3592,264 @@ log_management() {
             ;;
     esac
     wait_for_key
+}
+
+# 用户管理函数
+user_management() {
+    while true; do
+        clear
+        echo -e "${BLUE}用户管理${NC}"
+        echo -e "${BLUE}================================${NC}"
+        echo
+        echo "请选择操作："
+        echo "1) 查看所有用户"
+        echo "2) 添加新用户"
+        echo "3) 删除用户"
+        echo "4) 修改用户密码"
+        echo "5) 修改用户权限"
+        echo "6) 查看用户详情"
+        echo "7) 返回上级菜单"
+        echo
+        read -p "请输入选项 [1-7]: " choice
+
+        case $choice in
+            1)
+                echo "系统用户列表："
+                echo "----------------"
+                awk -F: '$3 >= 1000 && $3 != 65534 {print "用户名: "$1"\t UID: "$3"\t 主目录: "$6}' /etc/passwd
+                ;;
+            2)
+                read -p "请输入新用户名: " username
+                read -p "是否创建家目录？(y/n): " create_home
+                read -p "是否添加到sudo组？(y/n): " add_sudo
+                
+                if [ "$create_home" = "y" ]; then
+                    home_opt="-m"
+                else
+                    home_opt=""
+                fi
+                
+                useradd $home_opt $username
+                passwd $username
+                
+                if [ "$add_sudo" = "y" ]; then
+                    usermod -aG sudo $username
+                fi
+                
+                print_message "用户 $username 创建完成"
+                ;;
+            3)
+                read -p "请输入要删除的用户名: " username
+                read -p "是否删除用户主目录？(y/n): " del_home
+                
+                if [ "$del_home" = "y" ]; then
+                    userdel -r $username
+                else
+                    userdel $username
+                fi
+                
+                print_message "用户 $username 已删除"
+                ;;
+            4)
+                read -p "请输入用户名: " username
+                passwd $username
+                ;;
+            5)
+                read -p "请输入用户名: " username
+                echo "���择操作："
+                echo "1) 添加到sudo组"
+                echo "2) 从sudo组移除"
+                echo "3) 锁定用户"
+                echo "4) 解锁用户"
+                read -p "请选择 [1-4]: " perm_choice
+                
+                case $perm_choice in
+                    1) usermod -aG sudo $username ;;
+                    2) gpasswd -d $username sudo ;;
+                    3) usermod -L $username ;;
+                    4) usermod -U $username ;;
+                    *) print_error "无效的选项" ;;
+                esac
+                ;;
+            6)
+                read -p "请输入用户名: " username
+                echo "用户详细信息："
+                echo "----------------"
+                id $username
+                echo
+                echo "用户组信息："
+                groups $username
+                echo
+                echo "登录记录："
+                last $username | head -n 5
+                ;;
+            7) return ;;
+            *)
+                print_error "无效的选项"
+                sleep 2
+                ;;
+        esac
+        wait_for_key
+    done
+}
+
+# 主机名管理函数
+modify_hostname() {
+    clear
+    echo -e "${BLUE}主机名管理${NC}"
+    echo -e "${BLUE}================================${NC}"
+    echo
+    echo "当前主机名: $(hostname)"
+    echo
+    read -p "请输入新的主机名: " new_hostname
+    
+    if [ -n "$new_hostname" ]; then
+        # 修改主机名
+        hostnamectl set-hostname "$new_hostname"
+        
+        # 更新hosts文件
+        sed -i "s/127.0.1.1.*/127.0.1.1\t$new_hostname/" /etc/hosts
+        
+        print_message "主机名已修改为: $new_hostname"
+        print_message "hosts文件已更新"
+    else
+        print_error "主机名不能为空"
+    fi
+}
+
+# hosts文件管理函数
+manage_hosts() {
+    while true; do
+        clear
+        echo -e "${BLUE}hosts文件管理${NC}"
+        echo -e "${BLUE}================================${NC}"
+        echo
+        echo "当前hosts文件内容："
+        echo "----------------"
+        cat /etc/hosts
+        echo
+        echo "请选择操作："
+        echo "1) 添加新记录"
+        echo "2) 修改记录"
+        echo "3) 删除记录"
+        echo "4) 返回上级菜单"
+        echo
+        read -p "请输入选项 [1-4]: " choice
+
+        case $choice in
+            1)
+                read -p "请输入IP地址: " ip
+                read -p "请输入主机名: " hostname
+                if [ -n "$ip" ] && [ -n "$hostname" ]; then
+                    echo "$ip $hostname" >> /etc/hosts
+                    print_message "记录已添加"
+                else
+                    print_error "IP或主机名不能为空"
+                fi
+                ;;
+            2)
+                read -p "请输入要修改的主机名: " old_hostname
+                read -p "请输入新的IP地址: " new_ip
+                sed -i "/[[:space:]]$old_hostname/c\\$new_ip $old_hostname" /etc/hosts
+                print_message "记录已修改"
+                ;;
+            3)
+                read -p "请输入要删除的主机名: " del_hostname
+                sed -i "/[[:space:]]$del_hostname/d" /etc/hosts
+                print_message "记录已删除"
+                ;;
+            4) return ;;
+            *)
+                print_error "无效的选项"
+                sleep 2
+                ;;
+        esac
+        wait_for_key
+    done
+}
+
+# 网络连接测试函数
+network_test() {
+    while true; do
+        clear
+        echo -e "${BLUE}网络连接测试${NC}"
+        echo -e "${BLUE}================================${NC}"
+        echo
+        echo "请选择测试类型："
+        echo "1) Ping测试"
+        echo "2) 端口测试"
+        echo "3) DNS解析测试"
+        echo "4) 路由追踪"
+        echo "5) 带宽测试"
+        echo "6) 返回上级菜单"
+        echo
+        read -p "请输入选项 [1-6]: " choice
+
+        case $choice in
+            1)
+                read -p "请输入目标地址: " target
+                ping -c 4 $target
+                ;;
+            2)
+                read -p "请输入目标地址: " host
+                read -p "请输入端口号: " port
+                nc -zv $host $port 2>&1
+                ;;
+            3)
+                read -p "请输入域名: " domain
+                nslookup $domain
+                ;;
+            4)
+                read -p "请输入目标地址: " target
+                traceroute $target
+                ;;
+            5)
+                if ! command -v speedtest-cli &> /dev/null; then
+                    print_message "正在安装speedtest-cli..."
+                    if [ -f /etc/debian_version ]; then
+                        apt-get install -y speedtest-cli
+                    elif [ -f /etc/redhat-release ]; then
+                        yum install -y speedtest-cli
+                    fi
+                fi
+                speedtest-cli
+                ;;
+            6) return ;;
+            *)
+                print_error "无效的选项"
+                sleep 2
+                ;;
+        esac
+        wait_for_key
+    done
+}
+
+# 日志函数
+log() {
+    local level=$1
+    shift
+    local message=$@
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [$level] $message" >> /var/log/manage_script.log
+}
+
+# 在关键操作处添加日志
+log "INFO" "开始执行系统优化"
+log "ERROR" "操作失败: $error_message"
+
+# 配置文件路径
+CONFIG_FILE="/etc/manage_script.conf"
+
+# 加载配置
+load_config() {
+    if [ -f "$CONFIG_FILE" ]; then
+        source "$CONFIG_FILE"
+    else
+        # 创建默认配置
+        cat > "$CONFIG_FILE" <<EOF
+# 系统管理脚本配置文件
+BACKUP_DIR="/backup"
+LOG_LEVEL="INFO"
+MAX_LOG_SIZE="100M"
+EOF
+    fi
 }
