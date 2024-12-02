@@ -416,6 +416,7 @@ show_system_config_menu() {
     echo "================================"
     echo "1. 用户管理"
     echo "2. 时区管理"
+    echo "3. Hosts配置"
     echo "0. 返回主菜单"
     echo "================================"
 }
@@ -424,7 +425,7 @@ show_system_config_menu() {
 system_config() {
     while true; do
         show_system_config_menu
-        read -p "请输入您的选择 [0-2]: " choice
+        read -p "请输入您的选择 [0-3]: " choice
         
         case $choice in
             1)
@@ -432,6 +433,9 @@ system_config() {
                 ;;
             2)
                 manage_timezone
+                ;;
+            3)
+                manage_hosts
                 ;;
             0)
                 return
@@ -581,6 +585,258 @@ search_timezone() {
         echo "请输入有效的搜索关键字！"
     fi
     read -p "按回车键继续..."
+}
+
+# 添加hosts管理菜单
+show_hosts_menu() {
+    clear
+    echo "================================"
+    echo "         Hosts配置菜单          "
+    echo "================================"
+    echo "1. 查看当前主机名"
+    echo "2. 修改主机名"
+    echo "3. 查看hosts文件"
+    echo "4. 添加hosts记录"
+    echo "5. 删除hosts记录"
+    echo "6. 修改hosts记录"
+    echo "7. 备份hosts文件"
+    echo "8. 恢复hosts文件"
+    echo "0. 返回上级菜单"
+    echo "================================"
+}
+
+# hosts管理主函数
+manage_hosts() {
+    while true; do
+        show_hosts_menu
+        read -p "请输入您的选择 [0-8]: " choice
+        
+        case $choice in
+            1)
+                show_hostname
+                ;;
+            2)
+                change_hostname
+                ;;
+            3)
+                view_hosts
+                ;;
+            4)
+                add_hosts_entry
+                ;;
+            5)
+                delete_hosts_entry
+                ;;
+            6)
+                modify_hosts_entry
+                ;;
+            7)
+                backup_hosts
+                ;;
+            8)
+                restore_hosts
+                ;;
+            0)
+                return
+                ;;
+            *)
+                echo "无效的选择，请重试..."
+                sleep 2
+                ;;
+        esac
+    done
+}
+
+# 显示当前主机名
+show_hostname() {
+    clear
+    echo "=========== 当前主机名信息 ==========="
+    echo "主机名：" $(hostname)
+    echo "完整主机名：" $(hostname -f)
+    echo "DNS域名：" $(hostname -d)
+    echo "IP地址：" $(hostname -i)
+    echo "======================================="
+    read -p "按回车键返回..."
+}
+
+# 修改主机名
+change_hostname() {
+    clear
+    echo "============ 修改主机名 ============"
+    current_hostname=$(hostname)
+    echo "当前主机名：$current_hostname"
+    read -p "请输入新的主机名: " new_hostname
+    
+    if [ -n "$new_hostname" ]; then
+        # 修改主机名
+        if hostnamectl set-hostname "$new_hostname"; then
+            # 更新 /etc/hosts 文件
+            sudo sed -i "s/127.0.1.1.*$current_hostname/127.0.1.1\t$new_hostname/g" /etc/hosts
+            echo "主机名已成功修改为：$new_hostname"
+            echo "请注意：某些服务可能需要重启才能生效"
+        else
+            echo "修改主机名失败，请检查权限！"
+        fi
+    else
+        echo "主机名不能为空！"
+    fi
+    read -p "按回车键返回..."
+}
+
+# 查看hosts文件
+view_hosts() {
+    clear
+    echo "============ 当前hosts文件内容 ============"
+    echo
+    cat /etc/hosts
+    echo
+    echo "==========================================="
+    read -p "按回车键返回..."
+}
+
+# 添加hosts记录
+add_hosts_entry() {
+    clear
+    echo "============ 添加hosts记录 ============"
+    read -p "请输入IP地址: " ip
+    read -p "请输入主机名: " hostname
+    
+    if [[ $ip =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] && [ -n "$hostname" ]; then
+        # 检查是否已存在
+        if grep -q "^$ip.*$hostname" /etc/hosts; then
+            echo "错误：该记录已存在！"
+        else
+            if sudo sh -c "echo '$ip\t$hostname' >> /etc/hosts"; then
+                echo "hosts记录添加成功！"
+            else
+                echo "添加hosts记录失败，请检查权限！"
+            fi
+        fi
+    else
+        echo "无效的IP地址或主机名！"
+    fi
+    read -p "按回车键返回..."
+}
+
+# 删除hosts记录
+delete_hosts_entry() {
+    clear
+    echo "============ 删除hosts记录 ============"
+    echo "当前hosts文件内容："
+    echo "-----------------------------------"
+    cat -n /etc/hosts
+    echo "-----------------------------------"
+    read -p "请输入要删除的行号: " line_num
+    
+    if [[ "$line_num" =~ ^[0-9]+$ ]]; then
+        if [ "$line_num" -le "$(wc -l < /etc/hosts)" ]; then
+            echo "将要删除的行："
+            sed -n "${line_num}p" /etc/hosts
+            read -p "确认删除吗？(y/n): " confirm
+            if [[ $confirm =~ ^[Yy]$ ]]; then
+                if sudo sed -i "${line_num}d" /etc/hosts; then
+                    echo "记录已成功删除！"
+                else
+                    echo "删除失败，请检查权限！"
+                fi
+            fi
+        else
+            echo "行号超出范围！"
+        fi
+    else
+        echo "请输入有效的行号！"
+    fi
+    read -p "按回车键返回..."
+}
+
+# 修改hosts记录
+modify_hosts_entry() {
+    clear
+    echo "============ 修改hosts记录 ============"
+    echo "当前hosts文件内容："
+    echo "-----------------------------------"
+    cat -n /etc/hosts
+    echo "-----------------------------------"
+    read -p "请输入要修改的行号: " line_num
+    
+    if [[ "$line_num" =~ ^[0-9]+$ ]]; then
+        if [ "$line_num" -le "$(wc -l < /etc/hosts)" ]; then
+            echo "当前行内容："
+            sed -n "${line_num}p" /etc/hosts
+            read -p "请输入新的IP地址: " ip
+            read -p "请输入新的主机名: " hostname
+            
+            if [[ $ip =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] && [ -n "$hostname" ]; then
+                if sudo sed -i "${line_num}c\\${ip}\t${hostname}" /etc/hosts; then
+                    echo "记录已成功修改！"
+                else
+                    echo "修改失败，请检查权限！"
+                fi
+            else
+                echo "无效的IP地址或主机名！"
+            fi
+        else
+            echo "行号超出范围！"
+        fi
+    else
+        echo "请输入有效的行号！"
+    fi
+    read -p "按回车键返回..."
+}
+
+# 备份hosts文件
+backup_hosts() {
+    clear
+    echo "============ 备份hosts文件 ============"
+    backup_dir="/etc/hosts.backup"
+    backup_file="${backup_dir}/hosts.$(date +%Y%m%d_%H%M%S)"
+    
+    # 创建备份目录
+    if [ ! -d "$backup_dir" ]; then
+        if ! sudo mkdir -p "$backup_dir"; then
+            echo "创建备份目录失败！"
+            read -p "按回车键返回..."
+            return
+        fi
+    fi
+    
+    # 备份文件
+    if sudo cp /etc/hosts "$backup_file"; then
+        echo "hosts文件已备份到：$backup_file"
+    else
+        echo "备份失败，请检查权限！"
+    fi
+    read -p "按回车键返回..."
+}
+
+# 恢复hosts文件
+restore_hosts() {
+    clear
+    echo "============ 恢复hosts文件 ============"
+    backup_dir="/etc/hosts.backup"
+    
+    if [ ! -d "$backup_dir" ]; then
+        echo "未找到备份目录！"
+        read -p "按回车键返回..."
+        return
+    fi
+    
+    echo "可用的备份文件："
+    echo "-----------------------------------"
+    ls -lt "$backup_dir" | grep -v '^total'
+    echo "-----------------------------------"
+    read -p "请输入要恢复的备份文件名: " backup_file
+    
+    if [ -f "$backup_dir/$backup_file" ]; then
+        if sudo cp "$backup_dir/$backup_file" /etc/hosts; then
+            echo "hosts文件已恢复！"
+        else
+            echo "恢复失败，请检查权限！"
+        fi
+    else
+        echo "备份文件不存在！"
+    fi
+    read -p "按回车键返回..."
 }
 
 # 主程序循环
