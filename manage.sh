@@ -1,6 +1,44 @@
 #!/bin/bash
 
-# 显示主菜单
+# 1. 基础工具函数
+check_and_install_tools() {
+    clear
+    echo "========== 系统初始化检查 =========="
+    
+    # 检查是否为root用户
+    if [ "$EUID" -ne 0 ]; then
+        echo "请使用root权限运行此脚本"
+        exit 1
+    fi
+    
+    # 检测包管理器
+    if command -v apt-get >/dev/null 2>&1; then
+        PKG_MANAGER="apt-get"
+        UPDATE_CMD="apt-get update"
+    elif command -v yum >/dev/null 2>&1; then
+        PKG_MANAGER="yum"
+        UPDATE_CMD="yum update"
+    elif command -v dnf >/dev/null 2>&1; then
+        PKG_MANAGER="dnf"
+        UPDATE_CMD="dnf update"
+    else
+        echo "未找到支持的包管理器！"
+        exit 1
+    fi
+    
+    # 更新包列表
+    echo "正在更新系统包列表..."
+    if $UPDATE_CMD >/dev/null 2>&1; then
+        echo "系统包列表更新成功"
+    else
+        echo "系统包列表更新失败，请检查网络连接或手动更新"
+    fi
+    
+    echo "========================================="
+    read -p "按回车键继续..."
+}
+
+# 2. 所有show_*菜单函数
 show_menu() {
     clear
     echo "================================"
@@ -8,394 +46,442 @@ show_menu() {
     echo "================================"
     echo "1. 显示系统信息"
     echo "2. 系统配置管理"
+    echo "3. 网络管理"
     echo "0. 退出"
     echo "================================"
 }
 
-# 显示系统信息菜单
-show_system_menu() {
+show_system_config_menu() {
     clear
     echo "================================"
-    echo "         系统信息菜单           "
+    echo "        系统配置菜单           "
     echo "================================"
-    echo "1. 基本系统信息"
-    echo "2. CPU信息"
-    echo "3. 内存信息"
-    echo "4. 磁盘信息"
-    echo "5. 网络信息"
-    echo "6. 显示所有信息"
-    echo "0. 返回主菜单"
-    echo "================================"
-}
-
-# 显示基本系统信息
-show_basic_info() {
-    clear
-    echo "=========== 基本系统信息 ==========="
-    echo "操作系统：" $(cat /etc/os-release | grep "PRETTY_NAME" | cut -d'"' -f2)
-    echo "主机名：" $(hostname)
-    echo "内核版本：" $(uname -r)
-    echo "系统运行时间：" $(uptime -p)
-    echo "当前时区：" $(timedatectl show --property=Timezone --value)
-    echo "系统时间：" $(date "+%Y-%m-%d %H:%M:%S %Z")
-    echo "UTC时间：" $(date -u "+%Y-%m-%d %H:%M:%S UTC")
-    echo "======================================"
-    read -p "按回车键返回..."
-}
-
-# 显示CPU信息
-show_cpu_info() {
-    clear
-    echo "============= CPU信息 ============="
-    echo "CPU型号：" $(cat /proc/cpuinfo | grep "model name" | head -n1 | cut -d: -f2)
-    echo "CPU核心数：" $(nproc)
-    echo "CPU使用率：" $(top -bn1 | grep "Cpu(s)" | awk '{print $2}')"%"
-    echo "CPU负载：" $(uptime | awk -F'load average:' '{print $2}')
-    echo "======================================"
-    read -p "按回车键返回..."
-}
-
-# 显示内存信息
-show_memory_info() {
-    clear
-    echo "============ 内存信息 ============"
-    echo "内存总量：" $(free -h | grep Mem | awk '{print $2}')
-    echo "已用内存：" $(free -h | grep Mem | awk '{print $3}')
-    echo "可用内存：" $(free -h | grep Mem | awk '{print $4}')
-    echo "内存使用率：" $(free | grep Mem | awk '{printf "%.2f%", $3/$2 * 100}')
-    echo "交换空间总量：" $(free -h | grep Swap | awk '{print $2}')
-    echo "已用交换空间：" $(free -h | grep Swap | awk '{print $3}')
-    echo "======================================"
-    read -p "按回车键返回..."
-}
-
-# 显示磁盘信息
-show_disk_info() {
-    clear
-    echo "============ 磁盘信息 ============"
-    echo "磁盘分区使用情况："
-    echo "-----------------------------------"
-    df -h | grep '^/dev/' | awk '{printf "%-20s\n总容量：%-8s\n已用：%-8s\n可用：%-8s\n使用率：%s\n-----------------------------------\n", $6, $2, $3, $4, $5}'
-    echo "======================================"
-    read -p "按回车键返回..."
-}
-
-# 显示网络信息
-show_network_info() {
-    clear
-    echo "============ 网络信息 ============"
-    echo "IP地址：" $(hostname -I)
-    echo "活动连接数：" $(netstat -an | grep ESTABLISHED | wc -l)
-    echo "网络接口信息："
-    echo "-----------------------------------"
-    ip addr | grep -E '^[0-9]+:|inet' | grep -v '127.0.0.1'
-    echo "======================================"
-    read -p "按回车键返回..."
-}
-
-# 系统信息主函数
-show_system_info() {
-    while true; do
-        show_system_menu
-        read -p "请输入您的选择 [0-6]: " choice
-        
-        case $choice in
-            1)
-                show_basic_info
-                ;;
-            2)
-                show_cpu_info
-                ;;
-            3)
-                show_memory_info
-                ;;
-            4)
-                show_disk_info
-                ;;
-            5)
-                show_network_info
-                ;;
-            6)
-                clear
-                show_basic_info
-                echo
-                show_cpu_info
-                echo
-                show_memory_info
-                echo
-                show_disk_info
-                echo
-                show_network_info
-                ;;
-            0)
-                return
-                ;;
-            *)
-                echo "无效的选择，请重试..."
-                sleep 2
-                ;;
-        esac
-    done
-}
-
-# 显示用户管理菜单
-show_user_menu() {
-    clear
-    echo "================================"
-    echo "         用户管理菜单           "
-    echo "================================"
-    echo "1. 显示用户列表"
-    echo "2. 添加新用户"
-    echo "3. 删除用户"
-    echo "4. 修改用户密码"
-    echo "5. 显示在线用户"
+    echo "1. 用户管理"
+    echo "2. 时区管理"
+    echo "3. 主机管理"
+    echo "4. 交换分区管理"
+    echo "5. 网络加速"
     echo "0. 返回上级菜单"
     echo "================================"
 }
 
-# 显示用户列表
-show_user_list() {
+show_network_menu() {
     clear
-    echo "=========== 系统用户列表 ==========="
-    echo "用户名         UID      主目录            Shell"
-    echo "----------------------------------------"
-    awk -F: '$3 >= 1000 && $3 != 65534 {printf "%-14s %-8s %-18s %s\n", $1, $3, $6, $7}' /etc/passwd
-    echo "========================================"
+    echo "================================"
+    echo "         网络管理菜单           "
+    echo "================================"
+    echo "1. 防火墙管理"
+    echo "2. IP协议管理"
+    echo "3. 查看网络状态"
+    echo "4. 网络接口管理"
+    echo "0. 返回上级菜单"
+    echo "================================"
+}
+
+show_firewall_menu() {
+    clear
+    echo "================================"
+    echo "         防火墙管理             "
+    echo "================================"
+    echo "1. 查看防火墙状态"
+    echo "2. 关闭防火墙"
+    echo "3. 开启防火墙"
+    echo "4. 禁用防火墙开机启动"
+    echo "5. 开放端口"
+    echo "6. 关闭端口"
+    echo "7. 查看已开放端口"
+    echo "8. 检测端口状态"
+    echo "0. 返回上级菜单"
+    echo "================================"
+}
+
+show_ip_menu() {
+    clear
+    echo "================================"
+    echo "         IP协议管理             "
+    echo "================================"
+    echo "1. 查看当前IP配置"
+    echo "2. 设置IPv4优先"
+    echo "3. 设置IPv6优先"
+    echo "4. 禁用IPv4"
+    echo "5. 禁用IPv6"
+    echo "6. 启用IPv4"
+    echo "7. 启用IPv6"
+    echo "0. 返回上级菜单"
+    echo "================================"
+}
+
+# 显示网络状态
+show_network_status() {
+    clear
+    echo "=========== 网络状态信息 ==========="
+    
+    echo "网络接口信息："
+    echo "--------------------------------"
+    ip addr show
+    
+    echo -e "\n路由表信息："
+    echo "--------------------------------"
+    ip route
+    
+    echo -e "\nDNS配置："
+    echo "--------------------------------"
+    cat /etc/resolv.conf
+    
+    echo -e "\n网络连接状态："
+    echo "--------------------------------"
+    ss -tuln
+    
+    echo -e "\n防火墙状态："
+    echo "--------------------------------"
+    if command -v ufw >/dev/null 2>&1; then
+        sudo ufw status
+    elif command -v firewalld >/dev/null 2>&1; then
+        sudo firewall-cmd --state
+        sudo firewall-cmd --list-all
+    else
+        echo "未检测到支持的防火墙服务"
+    fi
+    
+    echo -e "\nIP转发状态："
+    echo "--------------------------------"
+    cat /proc/sys/net/ipv4/ip_forward
+    
+    echo -e "\n网络负载统计："
+    echo "--------------------------------"
+    netstat -i
+    
     read -p "按回车键返回..."
 }
 
-# 添加新用户
-add_new_user() {
+# 3. 所有check_*状态检查函数
+check_firewall_status() {
     clear
-    echo "============ 添加新用户 ============"
-    read -p "请输入新用户名: " username
-    
-    if id "$username" >/dev/null 2>&1; then
-        echo "错误：用户 '$username' 已存在！"
+    echo "========== 防火墙状态检查 =========="
+    if command -v ufw >/dev/null 2>&1; then
+        echo "UFW状态："
+        sudo ufw status verbose
+    elif command -v firewalld >/dev/null 2>&1; then
+        echo "FirewallD状态："
+        sudo systemctl status firewalld
     else
-        # 获取密码
-        while true; do
-            read -s -p "请输入密码: " password
-            echo
-            read -s -p "请确认密码: " password2
-            echo
-            if [ "$password" = "$password2" ]; then
-                break
-            else
-                echo "错误：两次输入的密码不匹配！请重试..."
-            fi
-        done
-
-        # 设置用户组
-        read -p "是否将用户添加到sudo组(y/n)? " add_sudo
-        if [[ $add_sudo =~ ^[Yy]$ ]]; then
-            sudo_group="sudo"
-            # 部分发行版使用wheel组
-            if grep -q "^wheel:" /etc/group; then
-                sudo_group="wheel"
-            fi
-        fi
-
-        # 设置家目录
-        read -p "是否创建家目录(y/n)? [y] " create_home
-        home_opt="-m"
-        if [[ $create_home =~ ^[Nn]$ ]]; then
-            home_opt="-M"
-        fi
-
-        # 设置shell
-        echo "请选择用户的默认shell："
-        echo "1) /bin/bash (默认)"
-        echo "2) /bin/sh"
-        echo "3) /bin/zsh"
-        read -p "请选择 [1-3]: " shell_choice
-        case $shell_choice in
-            2) user_shell="/bin/sh" ;;
-            3) user_shell="/bin/zsh" ;;
-            *) user_shell="/bin/bash" ;;
-        esac
-
-        # 创建用户
-        if [[ $add_sudo =~ ^[Yy]$ ]]; then
-            useradd $home_opt -s "$user_shell" -G "$sudo_group" "$username"
-        else
-            useradd $home_opt -s "$user_shell" "$username"
-        fi
-
-        # 设置密码
-        echo "$username:$password" | chpasswd
-
-        if [ $? -eq 0 ]; then
-            echo "用户 '$username' 创建成功！"
-            echo "用户信息："
-            echo "------------------------"
-            echo "用户名: $username"
-            echo "家目录: $(grep "^$username:" /etc/passwd | cut -d: -f6)"
-            echo "Shell: $user_shell"
-            if [[ $add_sudo =~ ^[Yy]$ ]]; then
-                echo "附加组: $sudo_group"
-            fi
-            
-            # 设置家目录权限
-            if [[ ! $create_home =~ ^[Nn]$ ]]; then
-                user_home=$(grep "^$username:" /etc/passwd | cut -d: -f6)
-                chown -R "$username:$username" "$user_home"
-                chmod 700 "$user_home"
-            fi
-
-            # 询问是否设置账户过期时间
-            read -p "是否设置账户过期时间(y/n)? " set_expire
-            if [[ $set_expire =~ ^[Yy]$ ]]; then
-                read -p "请输入账户有效天数: " expire_days
-                if [[ "$expire_days" =~ ^[0-9]+$ ]]; then
-                    chage -M "$expire_days" "$username"
-                    echo "已设置账户 $expire_days 天后过期"
-                fi
-            fi
-        else
-            echo "创建用户失败，请检查权限！"
-        fi
+        echo "未检测到支持的防火墙服务"
     fi
     read -p "按回车键返回..."
 }
 
-# 删除用户
-delete_user() {
+check_port_status() {
     clear
-    echo "============ 删除用户 ============"
-    read -p "请输入要删除的用户名: " username
+    echo "============ 检测端口状态 ============"
     
-    if [ "$username" = "root" ]; then
-        echo "错误：不能删除root用户！"
+    # 首先检查并安装nc工具
+    if ! command -v nc >/dev/null 2>&1; then
+        echo "正在安装nc工具..."
+        if command -v apt-get >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y netcat
+        elif command -v yum >/dev/null 2>&1; then
+            sudo yum install -y nc
+        elif command -v dnf >/dev/null 2>&1; then
+            sudo dnf install -y nc
+        else
+            echo "无法安装nc工具，请手动安装"
+            read -p "按回车键返回..."
+            return
+        fi
+    fi
+    
+    read -p "请输入要检测的端口号: " port
+    read -p "请选择协议类型 (tcp/udp): " protocol
+    
+    if [[ ! "$port" =~ ^[0-9]+$ ]] || [ "$port" -lt 1 ] || [ "$port" -gt 65535 ]; then
+        echo "无效的端口号！端口号必须在1-65535之间"
         read -p "按回车键返回..."
         return
     fi
     
-    if id "$username" >/dev/null 2>&1; then
-        # 显示用户信息
-        echo "用户信息："
-        echo "------------------------"
-        echo "用户名: $username"
-        echo "UID: $(id -u "$username")"
-        echo "主组: $(id -gn "$username")"
-        echo "附加组: $(id -Gn "$username")"
-        echo "家目录: $(grep "^$username:" /etc/passwd | cut -d: -f6)"
-        echo "------------------------"
-        
-        read -p "确认要删除此用户吗(y/n)? " confirm
-        if [[ $confirm =~ ^[Yy]$ ]]; then
-            read -p "是否删除用户的家目录和邮件池(y/n)? " del_home
-            read -p "是否备份用户数据(y/n)? " backup
-            
-            if [[ $backup =~ ^[Yy]$ ]]; then
-                backup_dir="/tmp/user_backup_${username}_$(date +%Y%m%d)"
-                user_home=$(grep "^$username:" /etc/passwd | cut -d: -f6)
-                mkdir -p "$backup_dir"
-                cp -r "$user_home" "$backup_dir/"
-                echo "用户数据已备份到 $backup_dir"
-            fi
-            
-            if [[ $del_home =~ ^[Yy]$ ]]; then
-                userdel -r "$username"
-            else
-                userdel "$username"
-            fi
-            
-            if [ $? -eq 0 ]; then
-                echo "用户 '$username' 已成功删除！"
-                if [[ $backup =~ ^[Yy]$ ]]; then
-                    echo "数据备份位置: $backup_dir"
-                fi
-            else
-                echo "删除用户失败，请检查权限！"
-            fi
-        else
-            echo "已取消删除操作"
-        fi
+    echo -e "\n正在检测端口 $port 的状态..."
+    echo "--------------------------------"
+    
+    # 检查防火墙状态（如果有）
+    if command -v ufw >/dev/null 2>&1; then
+        echo "UFW防火墙规则："
+        sudo ufw status | grep "$port/$protocol"
+    elif command -v firewalld >/dev/null 2>&1; then
+        echo "FirewallD防火墙规则："
+        sudo firewall-cmd --list-ports | grep "$port/$protocol"
+    fi
+    
+    # 检查端口是否被占用
+    echo -e "\n端口监听状态："
+    if netstat -tuln | grep ":$port "; then
+        echo "端口 $port 已被占用"
+        echo -e "\n占用详情："
+        sudo lsof -i :$port
     else
-        echo "错误：用户 '$username' 不存在！"
+        echo "端口 $port 未被占用"
+    fi
+    
+    # 使用nc测试端口连通性
+    echo -e "\n端口连通性测试："
+    case $protocol in
+        tcp)
+            if nc -zv -w 2 localhost $port 2>&1; then
+                echo "TCP端口 $port 可以访问"
+            else
+                echo "TCP端口 $port 无法访问"
+            fi
+            ;;
+        udp)
+            if nc -zuv -w 2 localhost $port 2>&1; then
+                echo "UDP端口 $port 可以访问"
+            else
+                echo "UDP端口 $port 无法访问"
+            fi
+            ;;
+        *)
+            echo "无效的协议类型！"
+            ;;
+    esac
+    
+    read -p "按回车键返回..."
+}
+
+# 4. 所有list_*列表函数
+list_open_ports() {
+    clear
+    echo "============ 已开放端口 ============"
+    if command -v ufw >/dev/null 2>&1; then
+        sudo ufw status
+    elif command -v firewalld >/dev/null 2>&1; then
+        sudo firewall-cmd --list-ports
+    else
+        echo "未检测到支持的防火墙服务"
     fi
     read -p "按回车键返回..."
 }
 
-# 修改用户密码
-change_user_password() {
+# 5. 所有start_*和stop_*操作函数
+start_firewall() {
     clear
-    echo "========== 修改用户密码 =========="
-    read -p "请输入用户名: " username
+    echo "============ 开启防火墙 ============"
+    if command -v ufw >/dev/null 2>&1; then
+        sudo ufw enable
+        echo "UFW防火墙已开启"
+    elif command -v firewalld >/dev/null 2>&1; then
+        sudo systemctl start firewalld
+        echo "FirewallD防火墙已开启"
+    else
+        echo "未检测到支持的防火墙服务"
+    fi
+    read -p "按回车键返回..."
+}
+
+stop_firewall() {
+    clear
+    echo "============ 关闭防火墙 ============"
+    if command -v ufw >/dev/null 2>&1; then
+        sudo ufw disable
+        echo "UFW防火墙已关闭"
+    elif command -v firewalld >/dev/null 2>&1; then
+        sudo systemctl stop firewalld
+        echo "FirewallD防火墙已关闭"
+    else
+        echo "未检测到支持的防火墙服务"
+    fi
+    read -p "按回车键返回..."
+}
+
+disable_firewall() {
+    clear
+    echo "============ 禁用防火墙开机启动 ============"
+    if command -v ufw >/dev/null 2>&1; then
+        sudo systemctl disable ufw
+        echo "UFW防火墙开机启动已禁用"
+    elif command -v firewalld >/dev/null 2>&1; then
+        sudo systemctl disable firewalld
+        echo "FirewallD防火墙开机启动已禁用"
+    else
+        echo "未检测到支持的防火墙服务"
+    fi
+    read -p "按回车键返回..."
+}
+
+# 6. 所有open_*和close_*操作函数
+open_port() {
+    clear
+    echo "============ 开放端口 ============"
+    read -p "请输入要开放的端口号: " port
+    read -p "请选择协议类型 (tcp/udp/both): " protocol
     
-    if [ "$username" = "root" ] && [ "$EUID" -ne 0 ]; then
-        echo "错误：修改root密码需要root权限！"
+    if [[ ! "$port" =~ ^[0-9]+$ ]] || [ "$port" -lt 1 ] || [ "$port" -gt 65535 ]; then
+        echo "无效的端口号！端口号必须在1-65535之间"
         read -p "按回车键返回..."
         return
     fi
     
-    if id "$username" >/dev/null 2>&1; then
-        echo "选择密码修改选项："
-        echo "1) 直接修改密码"
-        echo "2) 强制用户下次登录时修改密码"
-        echo "3) 设置密码过期时间"
-        read -p "请选择 [1-3]: " pwd_option
-        
-        case $pwd_option in
-            1)
-                passwd "$username"
+    if command -v ufw >/dev/null 2>&1; then
+        case $protocol in
+            tcp)
+                sudo ufw allow $port/tcp
                 ;;
-            2)
-                passwd -e "$username"
-                echo "已设置用户 $username 下次登录时必须修改密码"
+            udp)
+                sudo ufw allow $port/udp
                 ;;
-            3)
-                read -p "请输入密码有效天数: " expire_days
-                if [[ "$expire_days" =~ ^[0-9]+$ ]]; then
-                    chage -M "$expire_days" "$username"
-                    echo "已设置密码 $expire_days 天后过期"
-                else
-                    echo "无效的天数输入"
-                fi
+            both)
+                sudo ufw allow $port
                 ;;
             *)
-                echo "无效的选择"
+                echo "无效的协议类型！"
+                read -p "按回车键返回..."
+                return
                 ;;
         esac
+        echo "端口已开放"
+    elif command -v firewalld >/dev/null 2>&1; then
+        case $protocol in
+            tcp)
+                sudo firewall-cmd --permanent --add-port=$port/tcp
+                ;;
+            udp)
+                sudo firewall-cmd --permanent --add-port=$port/udp
+                ;;
+            both)
+                sudo firewall-cmd --permanent --add-port=$port/tcp
+                sudo firewall-cmd --permanent --add-port=$port/udp
+                ;;
+            *)
+                echo "无效的协议类型！"
+                read -p "按回车键返回..."
+                return
+                ;;
+        esac
+        sudo firewall-cmd --reload
+        echo "端口已开放"
     else
-        echo "错误：用户 '$username' 不存在！"
+        echo "未检测到支持的防火墙服务"
     fi
     read -p "按回车键返回..."
 }
 
-# 显示在线用户
-show_online_users() {
+close_port() {
     clear
-    echo "=========== 在线用户列表 ==========="
-    echo "用户名    终端    登录时间    来源"
-    echo "----------------------------------------"
-    who | awk '{printf "%-10s %-8s %-12s %s\n", $1, $2, $3" "$4, $5}'
-    echo "========================================"
+    echo "============ 关闭端口 ============"
+    read -p "请输入要关闭的端口号: " port
+    read -p "请选择协议类型 (tcp/udp/both): " protocol
+    
+    if [[ ! "$port" =~ ^[0-9]+$ ]] || [ "$port" -lt 1 ] || [ "$port" -gt 65535 ]; then
+        echo "无效的端口号！端口号必须在1-65535之间"
+        read -p "按回车键返回..."
+        return
+    fi
+    
+    if command -v ufw >/dev/null 2>&1; then
+        case $protocol in
+            tcp)
+                sudo ufw deny $port/tcp
+                ;;
+            udp)
+                sudo ufw deny $port/udp
+                ;;
+            both)
+                sudo ufw deny $port
+                ;;
+            *)
+                echo "无效的协议类型！"
+                read -p "按回车键返回..."
+                return
+                ;;
+        esac
+        echo "端口已关闭"
+    elif command -v firewalld >/dev/null 2>&1; then
+        case $protocol in
+            tcp)
+                sudo firewall-cmd --permanent --remove-port=$port/tcp
+                ;;
+            udp)
+                sudo firewall-cmd --permanent --remove-port=$port/udp
+                ;;
+            both)
+                sudo firewall-cmd --permanent --remove-port=$port/tcp
+                sudo firewall-cmd --permanent --remove-port=$port/udp
+                ;;
+            *)
+                echo "无效的协议类型！"
+                read -p "按回车键返回..."
+                return
+                ;;
+        esac
+        sudo firewall-cmd --reload
+        echo "端口已关闭"
+    else
+        echo "未检测到支持的防火墙服务"
+    fi
     read -p "按回车键返回..."
 }
 
-# 用户管理主函数
-user_management() {
+# 7. 所有set_*和show_*配置函数
+set_ipv4_priority() {
+    clear
+    echo "正在设置IPv4优先..."
+    if [ -f /etc/gai.conf ]; then
+        sudo cp /etc/gai.conf /etc/gai.conf.bak
+        sudo sed -i 's/^precedence ::ffff:0:0\/96  100/#precedence ::ffff:0:0\/96  100/' /etc/gai.conf
+        echo "precedence ::ffff:0:0/96  100" | sudo tee -a /etc/gai.conf
+        echo "IPv4优先级已设置"
+    else
+        echo "precedence ::ffff:0:0/96  100" | sudo tee /etc/gai.conf
+    fi
+    read -p "按回车键返回..."
+}
+
+set_ipv6_priority() {
+    clear
+    echo "正在设置IPv6优先..."
+    if [ -f /etc/gai.conf ]; then
+        sudo cp /etc/gai.conf /etc/gai.conf.bak
+        sudo sed -i 's/^precedence ::ffff:0:0\/96  100/precedence ::ffff:0:0\/96  100/' /etc/gai.conf
+        echo "#precedence ::ffff:0:0/96  100" | sudo tee -a /etc/gai.conf
+        echo "IPv6优先级已设置"
+    else
+        echo "#precedence ::ffff:0:0/96  100" | sudo tee /etc/gai.conf
+    fi
+    read -p "按回车键返回..."
+}
+
+show_ip_config() {
+    clear
+    echo "=========== IP配置信息 ==========="
+    echo "IPv4配置："
+    ip -4 addr show
+    echo
+    echo "IPv6配置："
+    ip -6 addr show
+    echo
+    echo "IP优先级配置："
+    grep -r . /proc/sys/net/ipv6/conf/*/disable_ipv6
+    cat /proc/sys/net/ipv6/conf/all/disable_ipv6
+    read -p "按回车键返回..."
+}
+
+# 8. 所有manage_*管理函数
+manage_network() {
     while true; do
-        show_user_menu
-        read -p "请输入您的选择 [0-5]: " choice
+        show_network_menu
+        read -p "请输入您的选择 [0-4]: " choice
         
         case $choice in
             1)
-                show_user_list
+                manage_firewall
                 ;;
             2)
-                add_new_user
+                manage_ip_protocol
                 ;;
             3)
-                delete_user
+                show_network_status
                 ;;
             4)
-                change_user_password
-                ;;
-            5)
-                show_online_users
+                manage_network_interface
                 ;;
             0)
                 return
@@ -408,24 +494,96 @@ user_management() {
     done
 }
 
-# 系统配置菜单
-show_system_config_menu() {
-    clear
-    echo "================================"
-    echo "       系统配置管理菜单         "
-    echo "================================"
-    echo "1. 用户管理"
-    echo "2. 时区管理"
-    echo "3. Hosts配置"
-    echo "0. 返回主菜单"
-    echo "================================"
+manage_firewall() {
+    while true; do
+        show_firewall_menu
+        read -p "请输入您的选择 [0-8]: " choice
+        
+        case $choice in
+            1)
+                check_firewall_status
+                ;;
+            2)
+                stop_firewall
+                ;;
+            3)
+                start_firewall
+                ;;
+            4)
+                disable_firewall
+                ;;
+            5)
+                open_port
+                ;;
+            6)
+                close_port
+                ;;
+            7)
+                list_open_ports
+                ;;
+            8)
+                check_port_status
+                ;;
+            0)
+                return
+                ;;
+            *)
+                echo "无效的选择，请重试..."
+                sleep 2
+                ;;
+        esac
+    done
 }
 
-# 系统配置管理主函数
+manage_ip_protocol() {
+    while true; do
+        show_ip_menu
+        read -p "请输入您的选择 [0-7]: " choice
+        
+        case $choice in
+            1)
+                show_ip_config
+                ;;
+            2)
+                set_ipv4_priority
+                ;;
+            3)
+                set_ipv6_priority
+                ;;
+            4)
+                disable_ipv4
+                ;;
+            5)
+                disable_ipv6
+                ;;
+            6)
+                enable_ipv4
+                ;;
+            7)
+                enable_ipv6
+                ;;
+            0)
+                return
+                ;;
+            *)
+                echo "无效的选择，请重试..."
+                sleep 2
+                ;;
+        esac
+    done
+}
+
+manage_network_interface() {
+    clear
+    echo "============ 网络接口管理 ============"
+    # 在这里添加网络接口管理的代码
+    read -p "按回车键返回..."
+}
+
 system_config() {
     while true; do
         show_system_config_menu
-        read -p "请输入您的选择 [0-3]: " choice
+        read -p "请输入您的选择 [0-5]: " choice
         
         case $choice in
             1)
@@ -437,6 +595,13 @@ system_config() {
             3)
                 manage_hosts
                 ;;
+            4)
+                manage_swap
+                ;;
+            5)
+                # 直接调用外部BBR脚本
+                bash <(curl -sL https://raw.githubusercontent.com/ylx2016/Linux-NetSpeed/master/tcp.sh)
+                ;;
             0)
                 return
                 ;;
@@ -448,58 +613,29 @@ system_config() {
     done
 }
 
-# 添加时区管理函数
-manage_timezone() {
+# 9. main函数和程序入口
+main() {
+    # 检查并安装必要工具
+    check_and_install_tools
+    
+    # 主程序循环
     while true; do
-        clear
-        echo "============ 时区管理 ============"
-        echo "当前时区：" $(timedatectl show --property=Timezone --value)
-        echo "当前时间：" $(date "+%Y-%m-%d %H:%M:%S %Z")
-        echo "--------------------------------"
-        echo "1. 按洲际选择时区"
-        echo "2. 搜索时区"
-        echo "3. 设置为UTC时区"
-        echo "4. 设置为Asia/Shanghai时区"
-        echo "5. 同步系统时间"
-        echo "0. 返回上级菜单"
-        echo "================================"
-        
-        read -p "请输入您的选择 [0-5]: " choice
+        show_menu
+        read -p "请输入您的选择 [0-3]: " choice
         
         case $choice in
             1)
-                select_timezone_by_region
+                show_system_info
                 ;;
             2)
-                search_timezone
+                system_config
                 ;;
             3)
-                if timedatectl set-timezone UTC; then
-                    echo "已将时区设置为 UTC"
-                else
-                    echo "设置时区失败，请检查权限！"
-                fi
-                read -p "按回车键继续..."
-                ;;
-            4)
-                if timedatectl set-timezone Asia/Shanghai; then
-                    echo "已将时区设置为 Asia/Shanghai"
-                else
-                    echo "设置时区失败，请检查权限！"
-                fi
-                read -p "按回车键继续..."
-                ;;
-            5)
-                echo "正在同步系统时间..."
-                if timedatectl set-ntp true; then
-                    echo "系统时间同步成功！"
-                else
-                    echo "时间同步失败，请检查网络连接和NTP服务！"
-                fi
-                read -p "按回车键继续..."
+                manage_network
                 ;;
             0)
-                return
+                echo "感谢使用，再见！"
+                exit 0
                 ;;
             *)
                 echo "无效的选择，请重试..."
@@ -509,397 +645,5 @@ manage_timezone() {
     done
 }
 
-# 按洲际选择时区
-select_timezone_by_region() {
-    clear
-    echo "========== 选择时区区域 =========="
-    regions=($(timedatectl list-timezones | cut -d'/' -f1 | sort -u))
-    
-    # 显示区域列表
-    echo "可用的区域："
-    for i in "${!regions[@]}"; do
-        echo "$((i+1)). ${regions[i]}"
-    done
-    
-    read -p "请选择区域编号: " region_num
-    if [ "$region_num" -gt 0 ] && [ "$region_num" -le "${#regions[@]}" ]; then
-        selected_region=${regions[$((region_num-1))]}
-        
-        # 显示选定区域的城市
-        clear
-        echo "========== 选择城市 =========="
-        cities=($(timedatectl list-timezones | grep "^$selected_region/" | cut -d'/' -f2- | sort))
-        
-        echo "可用的城市："
-        for i in "${!cities[@]}"; do
-            echo "$((i+1)). ${cities[i]}"
-        done
-        
-        read -p "请选择城市编号: " city_num
-        if [ "$city_num" -gt 0 ] && [ "$city_num" -le "${#cities[@]}" ]; then
-            selected_timezone="$selected_region/${cities[$((city_num-1))]}"
-            if timedatectl set-timezone "$selected_timezone"; then
-                echo "已将时区设置为 $selected_timezone"
-            else
-                echo "设置时区失败，请检查权限！"
-            fi
-        else
-            echo "无效的选择！"
-        fi
-    else
-        echo "无效的选择！"
-    fi
-    read -p "按回车键继续..."
-}
-
-# 搜索时区
-search_timezone() {
-    clear
-    echo "============ 搜索时区 ============"
-    read -p "请输入要搜索的时区关键字: " search_key
-    
-    if [ -n "$search_key" ]; then
-        results=($(timedatectl list-timezones | grep -i "$search_key"))
-        
-        if [ ${#results[@]} -eq 0 ]; then
-            echo "未找到匹配的时区！"
-        else
-            echo "找到以下匹配的时区："
-            for i in "${!results[@]}"; do
-                echo "$((i+1)). ${results[i]}"
-            done
-            
-            read -p "请选择时区编号(0取消): " tz_num
-            if [ "$tz_num" -gt 0 ] && [ "$tz_num" -le "${#results[@]}" ]; then
-                selected_timezone=${results[$((tz_num-1))]}
-                if timedatectl set-timezone "$selected_timezone"; then
-                    echo "已将时区设置为 $selected_timezone"
-                else
-                    echo "设置时区失败，请检查权限！"
-                fi
-            elif [ "$tz_num" -ne 0 ]; then
-                echo "无效的选择！"
-            fi
-        fi
-    else
-        echo "请输入有效的搜索关键字！"
-    fi
-    read -p "按回车键继续..."
-}
-
-# 添加hosts管理菜单
-show_hosts_menu() {
-    clear
-    echo "================================"
-    echo "         Hosts配置菜单          "
-    echo "================================"
-    echo "1. 查看当前主机名"
-    echo "2. 修改主机名"
-    echo "3. 查看hosts文件"
-    echo "4. 添加hosts记录"
-    echo "5. 删除hosts记录"
-    echo "6. 修改hosts记录"
-    echo "7. 备份hosts文件"
-    echo "8. 恢复hosts文件"
-    echo "0. 返回上级菜单"
-    echo "================================"
-}
-
-# hosts管理主函数
-manage_hosts() {
-    while true; do
-        show_hosts_menu
-        read -p "请输入您的选择 [0-8]: " choice
-        
-        case $choice in
-            1)
-                show_hostname
-                ;;
-            2)
-                change_hostname
-                ;;
-            3)
-                view_hosts
-                ;;
-            4)
-                add_hosts_entry
-                ;;
-            5)
-                delete_hosts_entry
-                ;;
-            6)
-                modify_hosts_entry
-                ;;
-            7)
-                backup_hosts
-                ;;
-            8)
-                restore_hosts
-                ;;
-            0)
-                return
-                ;;
-            *)
-                echo "无效的选择，请重试..."
-                sleep 2
-                ;;
-        esac
-    done
-}
-
-# 显示当前主机名
-show_hostname() {
-    clear
-    echo "=========== 当前主机名信息 ==========="
-    echo "主机名：" $(hostname)
-    echo "完整主机名：" $(hostname -f)
-    echo "DNS域名：" $(hostname -d)
-    echo "IP地址：" $(hostname -i)
-    echo "======================================="
-    read -p "按回车键返回..."
-}
-
-# 修改主机名
-change_hostname() {
-    clear
-    echo "============ 修改主机名 ============"
-    current_hostname=$(hostname)
-    echo "当前主机名：$current_hostname"
-    read -p "请输入新的主机名: " new_hostname
-    
-    if [ -n "$new_hostname" ]; then
-        # 备份hosts文件
-        sudo cp /etc/hosts /etc/hosts.bak
-        
-        # 修改主机名
-        if sudo hostnamectl set-hostname "$new_hostname"; then
-            # 更新 /etc/hosts 文件中的所有相关条目
-            # 1. 更新 127.0.1.1 对应的主机名
-            if grep -q "^127.0.1.1" /etc/hosts; then
-                sudo sed -i "s/^127.0.1.1.*$/127.0.1.1\t$new_hostname/g" /etc/hosts
-            else
-                # 如果不存在 127.0.1.1 条目，则添加
-                echo "127.0.1.1\t$new_hostname" | sudo tee -a /etc/hosts > /dev/null
-            fi
-            
-            # 2. 更新 127.0.0.1 对应的主机名（如果包含旧主机名）
-            if grep -q "^127.0.0.1.*$current_hostname" /etc/hosts; then
-                sudo sed -i "s/\b$current_hostname\b/$new_hostname/g" /etc/hosts
-            fi
-            
-            # 3. 确保基本的 localhost 条目存在
-            if ! grep -q "^127.0.0.1.*localhost" /etc/hosts; then
-                echo "127.0.0.1\tlocalhost" | sudo tee -a /etc/hosts > /dev/null
-            fi
-            
-            echo "主机名已成功修改为：$new_hostname"
-            echo "hosts文件已更新"
-            echo
-            echo "当前hosts文件内容："
-            echo "-----------------------------------"
-            cat /etc/hosts
-            echo "-----------------------------------"
-            echo "注意：某些服务可能需要重启才能生效"
-            
-            # 提示是否需要恢复
-            read -p "是否确认更改？(y/n): " confirm
-            if [[ ! $confirm =~ ^[Yy]$ ]]; then
-                sudo cp /etc/hosts.bak /etc/hosts
-                sudo hostnamectl set-hostname "$current_hostname"
-                echo "已恢复到原始设置"
-            else
-                echo "更改已保存"
-            fi
-            
-            # 清理备份文件
-            sudo rm -f /etc/hosts.bak
-        else
-            echo "修改主机名失败，请检查权限！"
-            # 恢复hosts文件
-            sudo cp /etc/hosts.bak /etc/hosts
-            sudo rm -f /etc/hosts.bak
-        fi
-    else
-        echo "主机名不能为空！"
-    fi
-    read -p "按回车键返回..."
-}
-
-# 查看hosts文件
-view_hosts() {
-    clear
-    echo "============ 当前hosts文件内容 ============"
-    echo
-    cat /etc/hosts
-    echo
-    echo "==========================================="
-    read -p "按回车键返回..."
-}
-
-# 添加hosts记录
-add_hosts_entry() {
-    clear
-    echo "============ 添加hosts记录 ============"
-    read -p "请输入IP地址: " ip
-    read -p "请输入主机名: " hostname
-    
-    if [[ $ip =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] && [ -n "$hostname" ]; then
-        # 检查是否已存在
-        if grep -q "^$ip.*$hostname" /etc/hosts; then
-            echo "错误：该记录已存在！"
-        else
-            if sudo sh -c "echo '$ip\t$hostname' >> /etc/hosts"; then
-                echo "hosts记录添加成功！"
-            else
-                echo "添加hosts记录失败，请检查权限！"
-            fi
-        fi
-    else
-        echo "无效的IP地址或主机名！"
-    fi
-    read -p "按回车键返回..."
-}
-
-# 删除hosts记录
-delete_hosts_entry() {
-    clear
-    echo "============ 删除hosts记录 ============"
-    echo "当前hosts文件内容："
-    echo "-----------------------------------"
-    cat -n /etc/hosts
-    echo "-----------------------------------"
-    read -p "请输入要删除的行号: " line_num
-    
-    if [[ "$line_num" =~ ^[0-9]+$ ]]; then
-        if [ "$line_num" -le "$(wc -l < /etc/hosts)" ]; then
-            echo "将要删除的行："
-            sed -n "${line_num}p" /etc/hosts
-            read -p "确认删除吗？(y/n): " confirm
-            if [[ $confirm =~ ^[Yy]$ ]]; then
-                if sudo sed -i "${line_num}d" /etc/hosts; then
-                    echo "记录已成功删除！"
-                else
-                    echo "删除失败，请检查权限！"
-                fi
-            fi
-        else
-            echo "行号超出范围！"
-        fi
-    else
-        echo "请输入有效的行号！"
-    fi
-    read -p "按回车键返回..."
-}
-
-# 修改hosts记录
-modify_hosts_entry() {
-    clear
-    echo "============ 修改hosts记录 ============"
-    echo "当前hosts文件内容："
-    echo "-----------------------------------"
-    cat -n /etc/hosts
-    echo "-----------------------------------"
-    read -p "请输入要修改的行号: " line_num
-    
-    if [[ "$line_num" =~ ^[0-9]+$ ]]; then
-        if [ "$line_num" -le "$(wc -l < /etc/hosts)" ]; then
-            echo "当前行内容："
-            sed -n "${line_num}p" /etc/hosts
-            read -p "请输入新的IP地址: " ip
-            read -p "请输入新的主机名: " hostname
-            
-            if [[ $ip =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] && [ -n "$hostname" ]; then
-                if sudo sed -i "${line_num}c\\${ip}\t${hostname}" /etc/hosts; then
-                    echo "记录已成功修改！"
-                else
-                    echo "修改失败，请检查权限！"
-                fi
-            else
-                echo "无效的IP地址或主机名！"
-            fi
-        else
-            echo "行号超出范围！"
-        fi
-    else
-        echo "请输入有效的行号！"
-    fi
-    read -p "按回车键返回..."
-}
-
-# 备份hosts文件
-backup_hosts() {
-    clear
-    echo "============ 备份hosts文件 ============"
-    backup_dir="/etc/hosts.backup"
-    backup_file="${backup_dir}/hosts.$(date +%Y%m%d_%H%M%S)"
-    
-    # 创建备份目录
-    if [ ! -d "$backup_dir" ]; then
-        if ! sudo mkdir -p "$backup_dir"; then
-            echo "创建备份目录失败！"
-            read -p "按回车键返回..."
-            return
-        fi
-    fi
-    
-    # 备份文件
-    if sudo cp /etc/hosts "$backup_file"; then
-        echo "hosts文件已备份到：$backup_file"
-    else
-        echo "备份失败，请检查权限！"
-    fi
-    read -p "按回车键返回..."
-}
-
-# 恢复hosts文件
-restore_hosts() {
-    clear
-    echo "============ 恢复hosts文件 ============"
-    backup_dir="/etc/hosts.backup"
-    
-    if [ ! -d "$backup_dir" ]; then
-        echo "未找到备份目录！"
-        read -p "按回车键返回..."
-        return
-    fi
-    
-    echo "可用的备份文件："
-    echo "-----------------------------------"
-    ls -lt "$backup_dir" | grep -v '^total'
-    echo "-----------------------------------"
-    read -p "请输入要恢复的备份文件名: " backup_file
-    
-    if [ -f "$backup_dir/$backup_file" ]; then
-        if sudo cp "$backup_dir/$backup_file" /etc/hosts; then
-            echo "hosts文件已恢复！"
-        else
-            echo "恢复失败，请检查权限！"
-        fi
-    else
-        echo "备份文件不存在！"
-    fi
-    read -p "按回车键返回..."
-}
-
-# 主程序循环
-while true; do
-    show_menu
-    read -p "请输入您的选择 [0-2]: " choice
-    
-    case $choice in
-        1)
-            show_system_info
-            ;;
-        2)
-            system_config
-            ;;
-        0)
-            echo "感谢使用，再见！"
-            exit 0
-            ;;
-        *)
-            echo "无效的选择，请重试..."
-            sleep 2
-            ;;
-    esac
-done
+# 10. 启动主程序（最后一行）
+main
