@@ -345,7 +345,7 @@ user_management() {
                 clear
                 read -p "请输入要查看的用户名: " username
                 if [ -n "$username" ]; then
-                    echo "用户信息："
+                    echo "��户信息："
                     id $username
                     echo -e "\n用户组："
                     groups $username
@@ -597,6 +597,12 @@ manage_swap() {
                     fi
                 done < <(swapon --show)
                 
+                if [ ${#swap_files[@]} -eq 0 ]; then
+                    echo "当前系统没有激活的Swap文件"
+                    read -p "按回车键返回..."
+                    continue
+                fi
+                
                 echo -e "\n选择操作："
                 echo "1. 通过序号删除"
                 echo "2. 手动输入路径"
@@ -605,21 +611,25 @@ manage_swap() {
                 read -p "请选择操作方式 [0-2]: " del_choice
                 case $del_choice in
                     1)
-                        read -p "请输入要删除的Swap文件序号: " num
+                        read -p "请输入要删除的Swap文件序号 [1-$((i-1))]: " num
                         if [ -n "$num" ] && [ "$num" -ge 1 ] && [ "$num" -lt "$i" ]; then
                             swap_path="${swap_files[$num]}"
                             if [ -n "$swap_path" ] && [ -f "$swap_path" ]; then
-                                echo "即将删除Swap文件: $swap_path"
+                                echo -e "\n即将删除以下Swap文件："
+                                echo "路径: $swap_path"
+                                echo "大小: $(du -h "$swap_path" | cut -f1)"
+                                echo "优先级: $(swapon --show | grep "$swap_path" | awk '{print $5}')"
+                                
                                 read -p "确认删除？(y/n): " confirm
                                 if [[ $confirm == "y" ]]; then
-                                    # 关闭swap
+                                    echo "正在关闭Swap..."
                                     sudo swapoff "$swap_path"
-                                    # 从fstab中移除
+                                    echo "正在从fstab中移除..."
                                     sudo sed -i "\|^$swap_path|d" /etc/fstab
-                                    # 删除文件
+                                    echo "正在删除文件..."
                                     sudo rm "$swap_path"
                                     
-                                    echo "Swap文件已删除"
+                                    echo -e "\nSwap文件已删除"
                                     echo "当前Swap状态："
                                     free -h | grep Swap
                                     log "删除Swap文件: $swap_path"
@@ -627,22 +637,36 @@ manage_swap() {
                                     echo "操作已取消"
                                 fi
                             else
-                                echo "Swap文件不存在"
+                                echo "Swap文件不存在或无法访问"
                             fi
                         else
                             echo "无效的序号"
                         fi
                         ;;
                     2)
-                        read -p "请输入要删除的Swap文件完整路径: " swap_path
+                        echo -e "\n请输入要删除的Swap文件完整路径"
+                        echo "提示：可以从上面的列表中复制路径"
+                        read -p "路径: " swap_path
                         if [ -n "$swap_path" ] && [ -f "$swap_path" ]; then
-                            echo "即将删除Swap文件: $swap_path"
+                            echo -e "\n即将删除以下Swap文件："
+                            echo "路径: $swap_path"
+                            echo "大小: $(du -h "$swap_path" | cut -f1)"
+                            if swapon --show | grep -q "$swap_path"; then
+                                echo "优先级: $(swapon --show | grep "$swap_path" | awk '{print $5}')"
+                            else
+                                echo "状态: 未激活"
+                            fi
+                            
                             read -p "确认删除？(y/n): " confirm
                             if [[ $confirm == "y" ]]; then
-                                sudo swapoff "$swap_path"
+                                echo "正在关闭Swap..."
+                                sudo swapoff "$swap_path" 2>/dev/null
+                                echo "正在从fstab中移除..."
                                 sudo sed -i "\|^$swap_path|d" /etc/fstab
+                                echo "正在删除文件..."
                                 sudo rm "$swap_path"
-                                echo "Swap文件已删除"
+                                
+                                echo -e "\nSwap文件已删除"
                                 echo "当前Swap状态："
                                 free -h | grep Swap
                                 log "删除Swap文件: $swap_path"
@@ -650,11 +674,11 @@ manage_swap() {
                                 echo "操作已取消"
                             fi
                         else
-                            echo "Swap文件不存在"
+                            echo "Swap文件不存在或无法访问"
                         fi
                         ;;
                     0)
-                        return
+                        continue
                         ;;
                     *)
                         echo "无效的选择"
@@ -905,7 +929,7 @@ manage_packages() {
                 ;;
             3)
                 clear
-                read -p "请输入要安装的软件包名称: " package
+                read -p "请输入��安装的软件包名称: " package
                 if [ -n "$package" ]; then
                     sudo apt-get install -y $package
                 fi
@@ -1630,7 +1654,7 @@ manage_dns_config() {
                 sudo cp /etc/resolv.conf /etc/resolv.conf.bak
                 echo "DNS配置已备份为 /etc/resolv.conf.bak"
                 log "备份DNS配置"
-                read -p "按回车键返回..."
+                read -p "按回���键返回..."
                 ;;
             5)
                 clear
@@ -2314,7 +2338,7 @@ manage_volumes() {
         echo "2. 创建数据卷"
         echo "3. 删除数据卷"
         echo "4. 清理未使用数据卷"
-        echo "5. 查看数据卷详情"
+        echo "5. 查看数据卷详��"
         echo "6. 备份数据卷"
         echo "7. 恢复数据卷"
         echo "0. 返回上级菜单"
@@ -2518,7 +2542,7 @@ modify_docker_config() {
                 return
                 ;;
             *)
-                echo "无效的选择"
+                echo "无效���选择"
                 sleep 2
                 ;;
         esac
