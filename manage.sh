@@ -1100,7 +1100,7 @@ manage_containers() {
         echo "3. 停止容器"
         echo "4. 重启容器"
         echo "5. 删除容器"
-        echo "6. 查看容器日志"
+        echo "6. ��看容器日志"
         echo "7. 进入容器终端"
         echo "8. 查看容器详情"
         echo "9. 导出容器"
@@ -1303,7 +1303,7 @@ manage_images() {
                 else
                     echo "Dockerfile不存在！"
                 fi
-                read -p "按回车键返回..."
+                read -p "按回车键返��..."
                 ;;
             8)
                 clear
@@ -1540,654 +1540,60 @@ clean_docker_system() {
     done
 }
 
-# 网络接口管理函数
+# 管理网络接口
 manage_network_interface() {
-    clear
-    echo "========== 网络接口管理 =========="
-    echo "1. 查看网络接口"
-    echo "2. 启用网络接口"
-    echo "3. 禁用网络接口"
-    echo "4. 配置IP地址"
-    echo "0. 返回上级菜单"
-    echo "================================="
-    
-    read -p "请输入您的选择 [0-4]: " choice
-    case $choice in
-        1)
-            clear
-            echo "网络接口列表："
-            ip link show
-            read -p "按回车键返回..."
-            ;;
-        2)
-            clear
-            echo "网络接口列表："
-            ip link show
-            read -p "请输入要启用的接口名称: " interface
-            if [ -n "$interface" ]; then
-                sudo ip link set $interface up
-                echo "接口已启用"
-                log "启用网络���口 $interface"
-            fi
-            read -p "按回车键返回..."
-            ;;
-        3)
-            clear
-            echo "网络接口列表："
-            ip link show
-            read -p "请输入要禁用的接口名称: " interface
-            if [ -n "$interface" ]; then
-                sudo ip link set $interface down
-                echo "接口已禁用"
-                log "禁用网络接口 $interface"
-            fi
-            read -p "按回车键返回..."
-            ;;
-        4)
-            clear
-            echo "网络接口列表："
-            ip addr show
-            read -p "请输入要配置的接口名称: " interface
-            read -p "请输入IP地址(例如:192.168.1.100/24): " ip
-            if [ -n "$interface" ] && [ -n "$ip" ]; then
-                sudo ip addr add $ip dev $interface
-                echo "IP地址已配置"
-                log "配置接口 $interface 的IP地址为 $ip"
-            fi
-            read -p "按回车键返回..."
-            ;;
-        0)
-            return
-            ;;
-        *)
-            echo "无效的选择，请重试..."
-            sleep 2
-            ;;
-    esac
-}
-
-# IP协议管理函数
-manage_ip_protocol() {
-    clear
-    echo "========== IP协议管理 =========="
-    echo "1. 查看IP配置"
-    echo "2. 设置IPv4优先"
-    echo "3. 设置IPv6优先"
-    echo "4. 禁用IPv4"
-    echo "5. 禁用IPv6"
-    echo "6. 启用IPv4"
-    echo "7. 启用IPv6"
-    echo "8. IP转发设置"
-    echo "9. IP地址管理"
-    echo "0. 返回上级菜单"
-    echo "==============================="
-    
-    read -p "请输入您的选择 [0-9]: " choice
-    case $choice in
-        1)
-            clear
-            echo "IP���置信息："
-            ip addr show
-            read -p "按回车键返回..."
-            ;;
-        2)
-            if [ -f /etc/gai.conf ]; then
-                sudo cp /etc/gai.conf /etc/gai.conf.bak
-                echo "precedence ::ffff:0:0/96  100" | sudo tee -a /etc/gai.conf
-                echo "IPv4优先级已设置"
-                log "设置IPv4优先"
-            fi
-            read -p "按回车键返回..."
-            ;;
-        3)
-            if [ -f /etc/gai.conf ]; then
-                sudo cp /etc/gai.conf /etc/gai.conf.bak
-                echo "precedence ::ffff:0:0/96  10" | sudo tee -a /etc/gai.conf
-                echo "IPv6优先级已设置"
-                log "设置IPv6优先"
-            fi
-            read -p "按回车键返回..."
-            ;;
-        4)
-            echo "net.ipv4.ip_forward=0" | sudo tee -a /etc/sysctl.conf
-            sudo sysctl -p
-            echo "IPv4已禁用"
-            log "禁用IPv4"
-            read -p "按回车键返回..."
-            ;;
-        5)
-            echo "net.ipv6.conf.all.disable_ipv6=1" | sudo tee -a /etc/sysctl.conf
-            echo "net.ipv6.conf.default.disable_ipv6=1" | sudo tee -a /etc/sysctl.conf
-            sudo sysctl -p
-            echo "IPv6已禁用"
-            log "禁用IPv6"
-            read -p "按回车键返回..."
-            ;;
-        6)
-            sudo sed -i '/net.ipv4.ip_forward=0/d' /etc/sysctl.conf
-            echo "net.ipv4.ip_forward=1" | sudo tee -a /etc/sysctl.conf
-            sudo sysctl -p
-            echo "IPv4已启用"
-            log "启用IPv4"
-            read -p "按回车键返回..."
-            ;;
-        7)
-            sudo sed -i '/net.ipv6.conf.all.disable_ipv6/d' /etc/sysctl.conf
-            sudo sed -i '/net.ipv6.conf.default.disable_ipv6/d' /etc/sysctl.conf
-            echo "net.ipv6.conf.all.disable_ipv6=0" | sudo tee -a /etc/sysctl.conf
-            echo "net.ipv6.conf.default.disable_ipv6=0" | sudo tee -a /etc/sysctl.conf
-            sudo sysctl -p
-            echo "IPv6已启用"
-            log "启用IPv6"
-            read -p "按回车键返回..."
-            ;;
-        8)
-            echo "net.ipv4.ip_forward=1" | sudo tee -a /etc/sysctl.conf
-            sudo sysctl -p
-            echo "IPv4已启用"
-            log "启用IPv4"
-            read -p "按回车键返回..."
-            ;;
-        9)
-            manage_ip_addresses
-            ;;
-        0)
-            return
-            ;;
-        *)
-            echo "无效的选择，请重试..."
-            sleep 2
-            ;;
-    esac
-}
-
-# 安装或更新Docker
-install_update_docker() {
-    clear
-    echo "========== Docker安装/更新 =========="
-    
-    # 检���是��已安装Docker
-    if command -v docker >/dev/null 2>&1; then
-        current_version=$(docker --version | cut -d ' ' -f3 | tr -d ',')
-        echo "当前Docker版本: $current_version"
-        read -p "是否要更新Docker？(y/n): " update_choice
-        if [[ $update_choice != "y" ]]; then
-            return
-        fi
-    fi
-    
-    echo "正在安装/更新Docker..."
-    # 使用官方安装脚本
-    wget -qO- get.docker.com | bash
-    
-    # 启动Docker服务
-    sudo systemctl start docker
-    sudo systemctl enable docker
-    
-    # 安装Docker Compose
-    echo "正在安装Docker Compose..."
-    compose_version="v2.30.1"
-    sudo curl -L "https://github.com/docker/compose/releases/download/${compose_version}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-    sudo chmod +x /usr/local/bin/docker-compose
-    
-    # 配置用户组
-    sudo groupadd docker 2>/dev/null
-    sudo usermod -aG docker $USER
-    
-    # 配置镜像加速
-    echo "是否配置国内镜像加速？(y/n): "
-    read -p "选择: " mirror_choice
-    if [[ $mirror_choice == "y" ]]; then
-        configure_docker_mirror
-    fi
-    
-    echo -e "\n安装完成！"
-    echo "Docker版本：" $(docker --version)
-    echo "Docker Compose版本：" $(docker-compose --version)
-    echo -e "\n注意：可能需要重新登录才能使用docker组权限"
-    read -p "回车键返回..."
-}
-
-# 防火墙管理相关函数
-# 启动防火墙
-start_firewall() {
-    clear
-    echo "============ 开启防火墙 ============"
-    if command -v ufw >/dev/null 2>&1; then
-        sudo ufw enable
-        echo "UFW防火墙已开启"
-        log "开��UFW防火墙"
-    elif command -v firewalld >/dev/null 2>&1; then
-        sudo systemctl start firewalld
-        sudo systemctl enable firewalld
-        echo "FirewallD防火墙已开启"
-        log "开启FirewallD防火墙"
-    else
-        echo "未检测到支持的防火墙服务"
-    fi
-    read -p "按回车键返回..."
-}
-
-# 停止防火墙
-stop_firewall() {
-    clear
-    echo "============ 关闭防火墙 ============"
-    if command -v ufw >/dev/null 2>&1; then
-        sudo ufw disable
-        echo "UFW防火墙已关闭"
-        log "关闭UFW防火墙"
-    elif command -v firewalld >/dev/null 2>&1; then
-        sudo systemctl stop firewalld
-        echo "FirewallD防火墙已关闭"
-        log "关闭FirewallD防火墙"
-    else
-        echo "未检测到支持的防火墙服务"
-    fi
-    read -p "按回车键返回..."
-}
-
-# 禁用防火墙开机���动
-disable_firewall() {
-    clear
-    echo "============ 禁用防火墙开机启动 ============"
-    if command -v ufw >/dev/null 2>&1; then
-        sudo systemctl disable ufw
-        echo "UFW防火墙开机启动已禁用"
-        log "禁用UFW防火墙开机启动"
-    elif command -v firewalld >/dev/null 2>&1; then
-        sudo systemctl disable firewalld
-        echo "FirewallD防火墙开机启动已禁用"
-        log "禁用FirewallD防火墙开机启动"
-    else
-        echo "未检测到支持的防火墙服务"
-    fi
-    read -p "按回车键返回..."
-}
-
-# 开放端口
-open_port() {
-    clear
-    echo "============ ���放端口 ============"
-    read -p "请输入要开放的端口号: " port
-    read -p "请选择协议类型 (tcp/udp/both): " protocol
-    
-    if [[ ! "$port" =~ ^[0-9]+$ ]] || [ "$port" -lt 1 ] || [ "$port" -gt 65535 ]; then
-        echo "无效的端口号！端口号必须在1-65535之间"
-        read -p "按回车键返回..."
-        return
-    fi
-    
-    if command -v ufw >/dev/null 2>&1; then
-        case $protocol in
-            tcp)
-                sudo ufw allow $port/tcp
-                log "UFW开放TCP端口 $port"
-                ;;
-            udp)
-                sudo ufw allow $port/udp
-                log "UFW开放UDP端口 $port"
-                ;;
-            both)
-                sudo ufw allow $port
-                log "UFW开放TCP/UDP端口 $port"
-                ;;
-            *)
-                echo "无效的协议类型！"
-                read -p "按回车键返回..."
-                return
-                ;;
-        esac
-        echo "端口已开放"
-    elif command -v firewalld >/dev/null 2>&1; then
-        case $protocol in
-            tcp)
-                sudo firewall-cmd --permanent --add-port=$port/tcp
-                log "FirewallD开放TCP端口 $port"
-                ;;
-            udp)
-                sudo firewall-cmd --permanent --add-port=$port/udp
-                log "FirewallD开放UDP端口 $port"
-                ;;
-            both)
-                sudo firewall-cmd --permanent --add-port=$port/tcp
-                sudo firewall-cmd --permanent --add-port=$port/udp
-                log "FirewallD开放TCP/UDP端口 $port"
-                ;;
-            *)
-                echo "无效的协议类���！"
-                read -p "按回车键返回..."
-                return
-                ;;
-        esac
-        sudo firewall-cmd --reload
-        echo "端口已开放"
-    else
-        echo "未检测到支持的防火墙服务"
-    fi
-    read -p "按回车键返回..."
-}
-
-# 关闭端口
-close_port() {
-    clear
-    echo "============ 关闭端口 ============"
-    read -p "请输入要关闭的端口号: " port
-    read -p "请选择协议类型 (tcp/udp/both): " protocol
-    
-    if [[ ! "$port" =~ ^[0-9]+$ ]] || [ "$port" -lt 1 ] || [ "$port" -gt 65535 ]; then
-        echo "无效的端口号！端口号必须在1-65535之间"
-        read -p "按回车键返回..."
-        return
-    fi
-    
-    if command -v ufw >/dev/null 2>&1; then
-        case $protocol in
-            tcp)
-                sudo ufw deny $port/tcp
-                sudo ufw delete allow $port/tcp
-                log "UFW关闭TCP端口 $port"
-                ;;
-            udp)
-                sudo ufw deny $port/udp
-                sudo ufw delete allow $port/udp
-                log "UFW关闭UDP端口 $port"
-                ;;
-            both)
-                sudo ufw deny $port
-                sudo ufw delete allow $port
-                log "UFW关闭TCP/UDP端口 $port"
-                ;;
-            *)
-                echo "无效的协议类型！"
-                read -p "按回车键返回..."
-                return
-                ;;
-        esac
-        echo "端口已关闭"
-    elif command -v firewalld >/dev/null 2>&1; then
-        case $protocol in
-            tcp)
-                sudo firewall-cmd --permanent --remove-port=$port/tcp
-                log "FirewallD关闭TCP端口 $port"
-                ;;
-            udp)
-                sudo firewall-cmd --permanent --remove-port=$port/udp
-                log "FirewallD关闭UDP端口 $port"
-                ;;
-            both)
-                sudo firewall-cmd --permanent --remove-port=$port/tcp
-                sudo firewall-cmd --permanent --remove-port=$port/udp
-                log "FirewallD关闭TCP/UDP端口 $port"
-                ;;
-            *)
-                echo "无效的协议类型！"
-                read -p "按回车键返回..."
-                return
-                ;;
-        esac
-        sudo firewall-cmd --reload
-        echo "端口已关闭"
-    else
-        echo "未检测到支持的防火墙服务"
-    fi
-    read -p "按回车键返回..."
-}
-
-# 查看已开放端口
-list_open_ports() {
-    clear
-    echo "============ 已开放端口列表 ============"
-    if command -v ufw >/dev/null 2>&1; then
-        echo "UFW防火墙规则："
-        sudo ufw status numbered
-    elif command -v firewalld >/dev/null 2>&1; then
-        echo "FirewallD防火墙规则："
-        echo "TCP端口："
-        sudo firewall-cmd --list-ports | tr ' ' '\n' | grep tcp
-        echo "UDP端口���"
-        sudo firewall-cmd --list-ports | tr ' ' '\n' | grep udp
-        echo -e "\n防火墙区域配置："
-        sudo firewall-cmd --list-all
-    else
-        echo "未检测到支持的防火墙服务"
-    fi
-    
-    echo -e "\n当前系统监听端口："
-    echo "TCP端口："
-    netstat -tuln | grep "LISTEN"
-    echo -e "\nUDP端口："
-    netstat -tuln | grep "UDP"
-    
-    read -p "按回车键返回..."
-}
-
-# 用户管理功能
-user_management() {
     while true; do
         clear
-        echo "========== 用户管理 =========="
-        echo "1. 查看所有用户"
-        echo "2. 添加用户"
-        echo "3. 删除用户"
-        echo "4. 修改用户密码"
-        echo "5. 修改用户权限"
-        echo "6. 查看用户详情"
+        echo "========== 网络接口管理 =========="
+        echo "1. 查看网络接口"
+        echo "2. 启用网络接口"
+        echo "3. 禁用网络接口"
+        echo "4. 配置IP地址"
         echo "0. 返回上级菜单"
-        echo "=============================="
-        
-        read -p "请输入您的选择 [0-6]: " choice
-        case $choice in
-            1)
-                clear
-                echo "系统用户列表："
-                cat /etc/passwd | cut -d: -f1,3,6,7
-                read -p "按回车键返回..."
-                ;;
-            2)
-                clear
-                read -p "请输入要添加的用户名: " username
-                if [ -n "$username" ]; then
-                    read -p "是否创建家目录？(y/n): " create_home
-                    if [[ $create_home == "y" ]]; then
-                        sudo useradd -m $username
-                    else
-                        sudo useradd $username
-                    fi
-                    sudo passwd $username
-                    echo "用户已添加"
-                    log "添加用户 $username"
-                fi
-                read -p "按回车键返回..."
-                ;;
-            3)
-                clear
-                read -p "请输入要删除的用户名: " username
-                if [ -n "$username" ]; then
-                    read -p "是否删除用户家目录？(y/n): " del_home
-                    if [[ $del_home == "y" ]]; then
-                        sudo userdel -r $username
-                    else
-                        sudo userdel $username
-                    fi
-                    echo "用户已删除"
-                    log "删除用户 $username"
-                fi
-                read -p "按回车键返回..."
-                ;;
-            4)
-                clear
-                read -p "请输入要修改密码的用户名: " username
-                if [ -n "$username" ]; then
-                    sudo passwd $username
-                    log "修改用户 $username 的密码"
-                fi
-                read -p "按回车键返回..."
-                ;;
-            5)
-                clear
-                read -p "请输入要修改权限的用户名: " username
-                if [ -n "$username" ]; then
-                    read -p "是否添加sudo权限？(y/n): " add_sudo
-                    if [[ $add_sudo == "y" ]]; then
-                        sudo usermod -aG sudo $username
-                        echo "已添加sudo权限"
-                    else
-                        sudo gpasswd -d $username sudo
-                        echo "已移除sudo权限"
-                    fi
-                    log "修改用户 $username 的权限"
-                fi
-                read -p "按回车键返回..."
-                ;;
-            6)
-                clear
-                read -p "请输入要查看的用户名: " username
-                if [ -n "$username" ]; then
-                    echo "用户信息："
-                    id $username
-                    echo -e "\n用户组："
-                    groups $username
-                    echo -e "\n登录记录："
-                    last $username | head -n 5
-                fi
-                read -p "按回车键返回..."
-                ;;
-            0)
-                return
-                ;;
-            *)
-                echo "无效的选择，请重试..."
-                sleep 2
-                ;;
-        esac
-    done
-}
-
-# 时区管理功能
-manage_timezone() {
-    while true; do
-        clear
-        echo "========== 时区管理 =========="
-        echo "1. 查看当前时区"
-        echo "2. 修改系统时区"
-        echo "3. 同步系统时间"
-        echo "4. 修改时间格式"
-        echo "0. 返回上级菜单"
-        echo "=============================="
+        echo "================================="
         
         read -p "请输入您的选择 [0-4]: " choice
         case $choice in
             1)
                 clear
-                echo "当前时区信息："
-                timedatectl
+                echo "网络接口列表："
+                ip link show
                 read -p "按回车键返回..."
                 ;;
             2)
                 clear
-                echo "可用的时区列表："
-                timedatectl list-timezones | grep "Asia"
-                read -p "请输入要设置的时区(例如:Asia/Shanghai): " timezone
-                if [ -n "$timezone" ]; then
-                    sudo timedatectl set-timezone $timezone
-                    echo "时区已更新"
-                    log "修改系统时区为 $timezone"
+                echo "网络接口列表："
+                ip link show
+                read -p "请输入要启用的接口名称: " interface
+                if [ -n "$interface" ]; then
+                    sudo ip link set $interface up
+                    echo "接口已启用"
+                    log "启用网络接口 $interface"
                 fi
                 read -p "按回车键返回..."
                 ;;
             3)
                 clear
-                echo "正在同步系统时间..."
-                sudo ntpdate pool.ntp.org || sudo hwclock --systohc
-                echo "时间同步完成"
-                log "同步系统时间"
+                echo "网络接口列表："
+                ip link show
+                read -p "请输入要禁用的接口名称: " interface
+                if [ -n "$interface" ]; then
+                    sudo ip link set $interface down
+                    echo "接口已禁用"
+                    log "禁用网络接口 $interface"
+                fi
                 read -p "按回车键返回..."
                 ;;
             4)
                 clear
-                echo "1. 12小时制"
-                echo "2. 24小时制"
-                read -p "请选择时间格式 [1-2]: " format
-                if [ "$format" == "1" ]; then
-                    sudo timedatectl set-local-rtc 1
-                else
-                    sudo timedatectl set-local-rtc 0
-                fi
-                echo "时间格式已更新"
-                read -p "按回车键返回..."
-                ;;
-            0)
-                return
-                ;;
-            *)
-                echo "无效的选择，请重试..."
-                sleep 2
-                ;;
-        esac
-    done
-}
-
-# 主机管理功能
-manage_hosts() {
-    while true; do
-        clear
-        echo "========== 主机管理 =========="
-        echo "1. 查看主机名"
-        echo "2. 修改主机名"
-        echo "3. 查看hosts文件"
-        echo "4. 编辑hosts文件"
-        echo "5. 备份hosts文件"
-        echo "6. 恢复hosts文件"
-        echo "0. 返回上级菜单"
-        echo "=============================="
-        
-        read -p "请��入您的选择 [0-6]: " choice
-        case $choice in
-            1)
-                clear
-                echo "当前主机名："
-                hostname
-                echo -e "\n主机信息："
-                hostnamectl
-                read -p "按回车键返回..."
-                ;;
-            2)
-                clear
-                read -p "请输入新的主机名: " new_hostname
-                if [ -n "$new_hostname" ]; then
-                    sudo hostnamectl set-hostname $new_hostname
-                    echo "主机名已更新"
-                    log "修改主机名为 $new_hostname"
-                fi
-                read -p "按回车键返回..."
-                ;;
-            3)
-                clear
-                echo "hosts文��内容："
-                cat /etc/hosts
-                read -p "按回车键返回..."
-                ;;
-            4)
-                clear
-                sudo nano /etc/hosts
-                log "编辑hosts文件"
-                read -p "按回车键返回..."
-                ;;
-            5)
-                clear
-                sudo cp /etc/hosts /etc/hosts.bak
-                echo "hosts文件已备份为 /etc/hosts.bak"
-                log "备份hosts文件"
-                read -p "按回车键返回..."
-                ;;
-            6)
-                clear
-                if [ -f "/etc/hosts.bak" ]; then
-                    sudo cp /etc/hosts.bak /etc/hosts
-                    echo "hosts文件已恢复"
-                    log "恢复hosts文件"
-                else
-                    echo "未找到备份文件"
+                echo "网络接口列表："
+                ip addr show
+                read -p "请输入要配置的接口名称: " interface
+                read -p "请输入IP地址(例如:192.168.1.100/24): " ip
+                if [ -n "$interface" ] && [ -n "$ip" ]; then
+                    sudo ip addr add $ip dev $interface
+                    echo "IP地址已配置"
+                    log "配置接口 $interface IP地址为 $ip"
                 fi
                 read -p "按回车键返回..."
                 ;;
@@ -2202,109 +1608,59 @@ manage_hosts() {
     done
 }
 
-# 交换分区管理功能
-manage_swap() {
+# 管理IP地址
+manage_ip_addresses() {
     while true; do
         clear
-        echo "========== 交换分管理 =========="
-        echo "1. 查看Swap状态"
-        echo "2. 创建Swap文件"
-        echo "3. 启用Swap"
-        echo "4. 关闭Swap"
-        echo "5. 调整Swap大小"
-        echo "6. 删除Swap文件"
-        echo "7. 修改Swap优先级"
+        echo "========== IP地址管理 =========="
+        echo "1. 查看IP地址"
+        echo "2. 添加IP地址"
+        echo "3. 删除IP地址"
+        echo "4. 修改默认网关"
         echo "0. 返回上级菜单"
-        echo "=================================="
+        echo "================================"
         
-        read -p "请输入您的选择 [0-7]: " choice
+        read -p "请输入您的选择 [0-4]: " choice
         case $choice in
             1)
                 clear
-                echo "Swap使用情况："
-                free -h | grep Swap
-                echo -e "\nSwap详细信息："
-                swapon --show
-                echo -e "\nSwap优先级："
-                cat /proc/swaps
+                echo "当前IP配置："
+                ip addr show
                 read -p "按回车键返回..."
                 ;;
             2)
                 clear
-                read -p "请输入Swap文件大小(GB): " swap_size
-                read -p "请输入Swap文件路径(默认:/swapfile): " swap_path
-                swap_path=${swap_path:-/swapfile}
-                
-                if [ -n "$swap_size" ]; then
-                    echo "正在创建Swap文件..."
-                    sudo fallocate -l ${swap_size}G $swap_path
-                    sudo chmod 600 $swap_path
-                    sudo mkswap $swap_path
-                    echo "Swap文件创建完成"
-                    log "创建${swap_size}G的Swap文件"
+                echo "网络接口列表："
+                ip link show
+                read -p "请输入接口名称: " interface
+                read -p "请输入IP地址(例如:192.168.1.100/24): " ip
+                if [ -n "$interface" ] && [ -n "$ip" ]; then
+                    sudo ip addr add $ip dev $interface
+                    echo "IP地址已添加"
+                    log "添加IP地址 $ip 到接口 $interface"
                 fi
                 read -p "按回车键返回..."
                 ;;
             3)
                 clear
-                read -p "请输入要启用的Swap文件路径: " swap_path
-                if [ -f "$swap_path" ]; then
-                    sudo swapon $swap_path
-                    echo "Swap已启用"
-                    log "启用Swap文件 $swap_path"
-                else
-                    echo "Swap文件不存在"
+                echo "当前IP配置："
+                ip addr show
+                read -p "请输入要删除的IP地址(包含掩码): " ip
+                read -p "请输入接口名称: " interface
+                if [ -n "$ip" ] && [ -n "$interface" ]; then
+                    sudo ip addr del $ip dev $interface
+                    echo "IP地址已删除"
+                    log "从接口 $interface 删除IP地址 $ip"
                 fi
                 read -p "按回车键返回..."
                 ;;
             4)
                 clear
-                read -p "请输入要关闭的Swap文件路径: " swap_path
-                if [ -f "$swap_path" ]; then
-                    sudo swapoff $swap_path
-                    echo "Swap已关闭"
-                    log "关闭Swap文件 $swap_path"
-                else
-                    echo "Swap文件不存在"
-                fi
-                read -p "按回车键返回..."
-                ;;
-            5)
-                clear
-                read -p "请输入要调整的Swap文件路径: " swap_path
-                read -p "请输入新的大小(GB): " new_size
-                if [ -f "$swap_path" ] && [ -n "$new_size" ]; then
-                    sudo swapoff $swap_path
-                    sudo fallocate -l ${new_size}G $swap_path
-                    sudo mkswap $swap_path
-                    sudo swapon $swap_path
-                    echo "Swap大小已调整"
-                    log "调整Swap文件 $swap_path 大小为 ${new_size}G"
-                fi
-                read -p "按回车键返回..."
-                ;;
-            6)
-                clear
-                read -p "请输入要删除的Swap文件路径: " swap_path
-                if [ -f "$swap_path" ]; then
-                    sudo swapoff $swap_path
-                    sudo rm $swap_path
-                    echo "Swap文件已删除"
-                    log "删除Swap文件 $swap_path"
-                else
-                    echo "Swap文件不存在"
-                fi
-                read -p "按回车键返回..."
-                ;;
-            7)
-                clear
-                read -p "请输入Swap文件路径: " swap_path
-                read -p "请输入优先级(-1到32767): " priority
-                if [ -f "$swap_path" ] && [ -n "$priority" ]; then
-                    sudo swapoff $swap_path
-                    sudo swapon $swap_path -p $priority
-                    echo "Swap优先级已修��"
-                    log "修改Swap文件 $swap_path 优先级为 $priority"
+                read -p "请输入新的默认网关: " gateway
+                if [ -n "$gateway" ]; then
+                    sudo ip route replace default via $gateway
+                    echo "默认网关已更新"
+                    log "修改默认网关为 $gateway"
                 fi
                 read -p "按回车键返回..."
                 ;;
@@ -2321,13 +1677,14 @@ manage_swap() {
 
 # 6. 主程序函数
 main() {
-    # 检查并安装必要工具
+    # 检查依赖
+    check_dependencies
+    # 检查并安装工具
     check_and_install_tools
     
-    # 主程序循环
     while true; do
         show_menu
-        read -p "请输入您的选择 [0-6]: " choice
+        read -p "请输入您的选择 [0-4]: " choice
         
         case $choice in
             1)
@@ -2445,11 +1802,11 @@ manage_routing_config() {
         echo "2. 添加静态路由"
         echo "3. 删除静态路由"
         echo "4. 修改默认网关"
-        echo "5. 查���路由跟踪"
+        echo "5. 查路由跟踪"
         echo "0. 返回上级菜单"
         echo "=============================="
         
-        read -p "请输入您的选择 [0-5]: " choice
+        read -p "请输入您选择 [0-5]: " choice
         case $choice in
             1)
                 clear
@@ -2467,7 +1824,7 @@ manage_routing_config() {
                     echo "静态路由已添加"
                     log "添加静态路由 $network via $gateway"
                 fi
-                read -p "按��车键返回..."
+                read -p "按车键返回..."
                 ;;
             3)
                 clear
@@ -2477,7 +1834,7 @@ manage_routing_config() {
                 if [ -n "$network" ]; then
                     sudo ip route del $network
                     echo "路由已删除"
-                    log "删除路由 $network"
+                    log "删除路��� $network"
                 fi
                 read -p "按回车键返回..."
                 ;;
@@ -2559,7 +1916,7 @@ run_network_tests() {
                     sudo apt-get install -y speedtest-cli || sudo yum install -y speedtest-cli
                 fi
                 speedtest-cli
-                read -p "按回车键返回..."
+                read -p "按回车返回..."
                 ;;
             6)
                 clear
@@ -2666,7 +2023,7 @@ manage_compose_projects() {
                 ;;
             6)
                 clear
-                read -p "请输��docker-compose.yml所在目录: " compose_dir
+                read -p "请输docker-compose.yml所在目录: " compose_dir
                 if [ -d "$compose_dir" ]; then
                     cd "$compose_dir"
                     docker-compose pull
@@ -2782,7 +2139,7 @@ manage_volumes() {
                     echo "数据卷已备份到: $backup_path"
                     log "备份数据卷 $volume_name 到 $backup_path"
                 fi
-                read -p "按回车键���回..."
+                read -p "按回车键回..."
                 ;;
             7)
                 clear
@@ -3026,4 +2383,16 @@ check_command_status() {
         echo "操作失败"
         return 1
     fi
+}
+
+# 错误处理函数
+handle_error() {
+    local exit_code=$?
+    local error_message="$1"
+    if [ $exit_code -ne 0 ]; then
+        echo "错误: $error_message"
+        log "错误: $error_message (退出码: $exit_code)"
+        return 1
+    fi
+    return 0
 }
