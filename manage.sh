@@ -468,60 +468,138 @@ manage_swap() {
     while true; do
         clear
         echo "========== 交换分区管理 =========="
-        echo "1. 查看当前交换分区使用情况"
-        echo "2. 添加交换分区"
-        echo "3. 删除交换分区"
-        echo "4. 调整交换分区大小"
+        echo "1. 查看Swap状态"
+        echo "2. 创建Swap文件"
+        echo "3. 删除Swap文件"
+        echo "4. 调整Swap大小"
+        echo "5. 修改Swap优先级"
+        echo "6. 开启/关闭Swap"
         echo "0. 返回上级菜单"
-        echo "================================"
+        echo "=================================="
         
-        read -p "请输入您的选择 [0-4]: " choice
+        read -p "请输入您的选择 [0-6]: " choice
         case $choice in
             1)
                 clear
-                echo "当前交换分区使用情况："
-                free -h | grep "Swap:" | awk '{printf "总Swap: %s\n已用: %s\n空闲: %s\n", $2, $3, $4}'
+                echo "Swap使用情况："
+                free -h | grep Swap
+                echo -e "\nSwap详细信息："
+                swapon --show
+                echo -e "\n当前Swap配置："
+                cat /proc/swaps
                 read -p "按回车键返回..."
                 ;;
             2)
                 clear
-                read -p "请输入要添加的交换分区大小(例如:1g): " swap_size
+                read -p "请输入Swap文件路径(默认:/swapfile): " swap_path
+                swap_path=${swap_path:-/swapfile}
+                read -p "请输入Swap大小(GB): " swap_size
+                
                 if [ -n "$swap_size" ]; then
-                    sudo fallocate -l $swap_size /swapfile
-                    sudo chmod 600 /swapfile
-                    sudo mkswap /swapfile
-                    sudo swapon /swapfile
-                    echo "交换分区已添加"
-                    log "添加交换分区 $swap_size"
+                    echo "正在创建Swap文件..."
+                    # 创建Swap文件
+                    sudo fallocate -l ${swap_size}G $swap_path || sudo dd if=/dev/zero of=$swap_path bs=1G count=$swap_size
+                    # 设置权限
+                    sudo chmod 600 $swap_path
+                    # 格式化为swap
+                    sudo mkswap $swap_path
+                    # 启用swap
+                    sudo swapon $swap_path
+                    # 添加到fstab以持久化
+                    echo "$swap_path none swap sw 0 0" | sudo tee -a /etc/fstab
+                    
+                    echo "Swap文件创建完成"
+                    echo "当前Swap状态："
+                    free -h | grep Swap
+                    log "创建${swap_size}G的Swap文件: $swap_path"
                 fi
                 read -p "按回车键返回..."
                 ;;
             3)
                 clear
-                echo "当前交换分区列表："
-                ls -lh /dev/ | grep "swap"
-                read -p "请输入要删除的交换分区名称: " swap_name
-                if [ -n "$swap_name" ]; then
-                    sudo swapoff $swap_name
-                    sudo rm -f $swap_name
-                    echo "交换分区已删除"
-                    log "删除交换分区 $swap_name"
+                echo "当前Swap文件列表："
+                swapon --show
+                read -p "请输入要删除的Swap文件路径: " swap_path
+                
+                if [ -n "$swap_path" ] && [ -f "$swap_path" ]; then
+                    # 关闭swap
+                    sudo swapoff $swap_path
+                    # 从fstab中移除
+                    sudo sed -i "\|^$swap_path|d" /etc/fstab
+                    # 删除文件
+                    sudo rm $swap_path
+                    
+                    echo "Swap文件已删除"
+                    echo "当前Swap状态："
+                    free -h | grep Swap
+                    log "删除Swap文件: $swap_path"
+                else
+                    echo "Swap文件不存在"
                 fi
                 read -p "按回车键返回..."
                 ;;
             4)
                 clear
-                echo "当前交换分区使用情况："
-                free -h | grep "Swap:" | awk '{printf "总Swap: %s\n已用: %s\n空闲: %s\n", $2, $3, $4}'
-                read -p "请输入要调整的交换分区大小(例如:1g): " new_size
-                if [ -n "$new_size" ]; then
-                    sudo fallocate -l $new_size /swapfile
-                    sudo chmod 600 /swapfile
-                    sudo mkswap /swapfile
-                    sudo swapon /swapfile
-                    echo "交换分区已调整"
-                    log "调整交换分区大小为 $new_size"
+                echo "当前Swap文件列表："
+                swapon --show
+                read -p "请输入要调整的Swap文件路径: " swap_path
+                read -p "请输入新的大小(GB): " new_size
+                
+                if [ -n "$swap_path" ] && [ -f "$swap_path" ] && [ -n "$new_size" ]; then
+                    # 关闭swap
+                    sudo swapoff $swap_path
+                    # 调整大小
+                    sudo fallocate -l ${new_size}G $swap_path || sudo dd if=/dev/zero of=$swap_path bs=1G count=$new_size
+                    # 重新格式化
+                    sudo mkswap $swap_path
+                    # 重新启用
+                    sudo swapon $swap_path
+                    
+                    echo "Swap大小已调整"
+                    echo "当前Swap状态："
+                    free -h | grep Swap
+                    log "调整Swap文件 $swap_path 大小为 ${new_size}G"
+                else
+                    echo "Swap文件不存在或参数无效"
                 fi
+                read -p "按回车键返回..."
+                ;;
+            5)
+                clear
+                echo "当前Swap文件列表："
+                swapon --show
+                read -p "请输入要修改优先级的Swap文件路径: " swap_path
+                read -p "请输入新的优先级(-1到32767): " priority
+                
+                if [ -n "$swap_path" ] && [ -f "$swap_path" ] && [ -n "$priority" ]; then
+                    sudo swapoff $swap_path
+                    sudo swapon $swap_path -p $priority
+                    echo "Swap优先级已修改"
+                    echo "当前Swap状态："
+                    swapon --show
+                    log "修改Swap文件 $swap_path 优先级为 $priority"
+                else
+                    echo "Swap文件不存在或参数无效"
+                fi
+                read -p "按回车键返回..."
+                ;;
+            6)
+                clear
+                echo "当前Swap状态："
+                free -h | grep Swap
+                read -p "是否要关闭所有Swap?(y/n): " disable_swap
+                
+                if [[ $disable_swap == "y" ]]; then
+                    sudo swapoff -a
+                    echo "所有Swap已关闭"
+                    log "关闭所有Swap"
+                else
+                    sudo swapon -a
+                    echo "所有Swap已开启"
+                    log "开启所有Swap"
+                fi
+                echo "当前Swap状态："
+                free -h | grep Swap
                 read -p "按回车键返回..."
                 ;;
             0)
