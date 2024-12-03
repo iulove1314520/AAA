@@ -371,26 +371,68 @@ manage_timezone() {
         echo "========== 时区管理 =========="
         echo "1. 查看当前时区"
         echo "2. 设置时区"
+        echo "3. 同步系统时间"
         echo "0. 返回上级菜单"
         echo "=============================="
         
-        read -p "请输入您的选择 [0-2]: " choice
+        read -p "请输入您的选择 [0-3]: " choice
         case $choice in
             1)
                 clear
-                echo "当前时区："
-                timedatectl | grep "Time zone" | awk '{print $3}'
+                echo "当前时区信息："
+                timedatectl
                 read -p "按回车键返回..."
                 ;;
             2)
                 clear
-                echo "请输入要设置的时区(例如:Asia/Shanghai): "
-                read timezone
+                echo "常用时区列表："
+                echo "1. Asia/Shanghai    (中国上海)"
+                echo "2. Asia/Hong_Kong   (中国香港)"
+                echo "3. Asia/Taipei      (中国台北)"
+                echo "4. Asia/Tokyo       (日本东京)"
+                echo "5. Asia/Singapore   (新加坡)"
+                echo "6. Europe/London    (英国伦敦)"
+                echo "7. America/New_York (美国纽约)"
+                echo "8. UTC             (协调世界时)"
+                echo "9. 手动输入时区"
+                echo "0. 返回上级菜单"
+                
+                read -p "请选择时区 [0-9]: " tz_choice
+                case $tz_choice in
+                    1) timezone="Asia/Shanghai";;
+                    2) timezone="Asia/Hong_Kong";;
+                    3) timezone="Asia/Taipei";;
+                    4) timezone="Asia/Tokyo";;
+                    5) timezone="Asia/Singapore";;
+                    6) timezone="Europe/London";;
+                    7) timezone="America/New_York";;
+                    8) timezone="UTC";;
+                    9)
+                        echo "可用的时区列表："
+                        timedatectl list-timezones
+                        read -p "请输入时区名称: " timezone
+                        ;;
+                    0) return;;
+                    *) echo "无效的选择"; sleep 2; continue;;
+                esac
+                
                 if [ -n "$timezone" ]; then
                     sudo timedatectl set-timezone $timezone
                     echo "时区已设置为: $timezone"
                     log "设置时区为 $timezone"
                 fi
+                read -p "按回车键返回..."
+                ;;
+            3)
+                clear
+                echo "正在同步系统时间..."
+                if command -v ntpdate >/dev/null 2>&1; then
+                    sudo ntpdate pool.ntp.org
+                else
+                    sudo timedatectl set-ntp true
+                fi
+                echo "系统时间已同步"
+                log "同步系统时间"
                 read -p "按回车键返回..."
                 ;;
             0)
@@ -482,30 +524,48 @@ manage_swap() {
             1)
                 clear
                 echo "Swap使用情况："
-                free -h | grep Swap
+                free -h | grep Swap | awk '{printf "总Swap: %s\n已用: %s\n空闲: %s\n", $2, $3, $4}'
+                
                 echo -e "\nSwap详细信息："
-                swapon --show
-                echo -e "\n当前Swap配置："
-                cat /proc/swaps
+                echo "文件路径              大小    类型    优先级"
+                echo "----------------------------------------"
+                swapon --show | tail -n +2 | while read line; do
+                    name=$(echo $line | awk '{print $1}')
+                    size=$(echo $line | awk '{print $3}')
+                    type=$(echo $line | awk '{print $4}')
+                    prio=$(echo $line | awk '{print $5}')
+                    printf "%-20s %-8s %-8s %-8s\n" "$name" "$size" "$type" "$prio"
+                done
+                
+                echo -e "\nSwap分区列表："
+                cat /proc/swaps | column -t
+                
+                echo -e "\nSwap配置信息："
+                grep -i swap /etc/fstab
+                
                 read -p "按回车键返回..."
                 ;;
             2)
                 clear
+                echo "创建Swap文件"
+                echo "推荐的Swap大小："
+                mem_total=$(free -m | grep Mem | awk '{print $2}')
+                echo "系统内存: ${mem_total}MB"
+                echo "- 内存小于2GB: 内存的2倍"
+                echo "- 内存2-8GB: 等于内存大小"
+                echo "- 内存8-64GB: 内存的0.5倍"
+                echo "- 内存大于64GB: 至少4GB"
+                
                 read -p "请输入Swap文件路径(默认:/swapfile): " swap_path
                 swap_path=${swap_path:-/swapfile}
                 read -p "请输入Swap大小(GB): " swap_size
                 
                 if [ -n "$swap_size" ]; then
                     echo "正在创建Swap文件..."
-                    # 创建Swap文件
                     sudo fallocate -l ${swap_size}G $swap_path || sudo dd if=/dev/zero of=$swap_path bs=1G count=$swap_size
-                    # 设置权限
                     sudo chmod 600 $swap_path
-                    # 格式化为swap
                     sudo mkswap $swap_path
-                    # 启用swap
                     sudo swapon $swap_path
-                    # 添加到fstab以持久化
                     echo "$swap_path none swap sw 0 0" | sudo tee -a /etc/fstab
                     
                     echo "Swap文件创建完成"
@@ -995,7 +1055,7 @@ show_network_info() {
     cat /etc/resolv.conf
     echo -e "\n网络连接："
     netstat -tuln
-    echo -e "\n网络统计："
+    echo -e "\n网��统计："
     netstat -s | head -n 20
     read -p "按回车键返回..."
 }
@@ -1371,7 +1431,7 @@ show_network_status() {
         sudo firewall-cmd --state
         sudo firewall-cmd --list-all
     else
-        echo "未检测到支持的防火墙服务"
+        echo "未检测到���持的防火墙服务"
     fi
     
     echo -e "\nIP转发状态："
@@ -1629,7 +1689,7 @@ run_network_tests() {
                 read -p "请输入要查询的域名: " domain
                 if [ -n "$domain" ]; then
                     nslookup $domain
-                    echo -e "\ndig查询结果："
+                    echo -e "\ndig查���结果："
                     dig $domain
                 fi
                 read -p "按回车键返回..."
