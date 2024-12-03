@@ -2504,7 +2504,7 @@ modify_docker_config() {
         echo "5. 配置容器默认时区"
         echo "6. 配置容器资源限制"
         echo "7. 配置网络选项"
-        echo "8. 配置存储驱动"
+        echo "8. �����置存储���动"
         echo "9. 查看当前配置"
         echo "0. 返回上级菜单"
         echo "=================================="
@@ -2705,3 +2705,275 @@ main() {
 
 # 9. 启动主程序
 main
+
+# 列出系统服务
+list_services() {
+    clear
+    echo "系统服务列表："
+    systemctl list-units --type=service --state=active,running | more
+    read -p "按回车键返回..."
+}
+
+# 启动服务
+start_service() {
+    clear
+    read -p "请输入要启动的服务名称: " service_name
+    if [ -n "$service_name" ]; then
+        sudo systemctl start $service_name
+        echo "服务状态："
+        systemctl status $service_name
+        log "启动服务: $service_name"
+    fi
+    read -p "按回车键返回..."
+}
+
+# 停止服务
+stop_service() {
+    clear
+    read -p "请输入要停止的服务名称: " service_name
+    if [ -n "$service_name" ]; then
+        sudo systemctl stop $service_name
+        echo "服务状态："
+        systemctl status $service_name
+        log "停止服务: $service_name"
+    fi
+    read -p "按回车键返回..."
+}
+
+# 重启服务
+restart_service() {
+    clear
+    read -p "请输入要重启的服务名称: " service_name
+    if [ -n "$service_name" ]; then
+        sudo systemctl restart $service_name
+        echo "服务状态："
+        systemctl status $service_name
+        log "重启服务: $service_name"
+    fi
+    read -p "按回车键返回..."
+}
+
+# 启用服务开机自启
+enable_service() {
+    clear
+    read -p "请输入要启用自启的服务名称: " service_name
+    if [ -n "$service_name" ]; then
+        sudo systemctl enable $service_name
+        echo "服务已设置为开机自启"
+        log "启用服务自启: $service_name"
+    fi
+    read -p "按回车键返回..."
+}
+
+# 禁用服务开机自启
+disable_service() {
+    clear
+    read -p "请输入要禁用自启的服务名称: " service_name
+    if [ -n "$service_name" ]; then
+        sudo systemctl disable $service_name
+        echo "服务已禁用开机自启"
+        log "禁用服务自启: $service_name"
+    fi
+    read -p "按回车键返回..."
+}
+
+# 查看服务状态
+view_service_status() {
+    clear
+    read -p "请输入要查看的服务名称: " service_name
+    if [ -n "$service_name" ]; then
+        systemctl status $service_name
+    fi
+    read -p "按回车键返回..."
+}
+
+# 查看服务日志
+view_service_logs() {
+    clear
+    read -p "请输入要查看日志的服务名称: " service_name
+    if [ -n "$service_name" ]; then
+        journalctl -u $service_name | tail -n 50
+    fi
+    read -p "按回车键返回..."
+}
+
+# 配置Docker镜像加速
+configure_docker_mirror() {
+    clear
+    echo "可用的镜像加速器："
+    echo "1. 阿里云"
+    echo "2. 腾讯云"
+    echo "3. 网易云"
+    echo "4. 中科大"
+    echo "5. 自定义"
+    
+    read -p "请选择镜像加速器 [1-5]: " mirror_choice
+    case $mirror_choice in
+        1) mirror="https://registry.cn-hangzhou.aliyuncs.com";;
+        2) mirror="https://mirror.ccs.tencentyun.com";;
+        3) mirror="https://hub-mirror.c.163.com";;
+        4) mirror="https://docker.mirrors.ustc.edu.cn";;
+        5) 
+            read -p "请输入镜像加速器地址: " mirror
+            ;;
+        *) echo "无效的选择"; return;;
+    esac
+    
+    if [ -n "$mirror" ]; then
+        sudo mkdir -p /etc/docker
+        echo "{\"registry-mirrors\": [\"$mirror\"]}" | sudo tee /etc/docker/daemon.json
+        sudo systemctl daemon-reload
+        sudo systemctl restart docker
+        echo "镜像加速器已配置"
+        log "配置Docker镜像加速器: $mirror"
+    fi
+    read -p "按回车键返回..."
+}
+
+# 修改Docker存储目录
+change_docker_root() {
+    clear
+    read -p "请输入新的Docker存储目录: " docker_root
+    if [ -n "$docker_root" ]; then
+        sudo systemctl stop docker
+        sudo mv /var/lib/docker $docker_root
+        echo "{\"data-root\":\"$docker_root\"}" | sudo tee /etc/docker/daemon.json
+        sudo systemctl daemon-reload
+        sudo systemctl start docker
+        echo "Docker存储目录已修改"
+        log "修改Docker存储目录为: $docker_root"
+    fi
+    read -p "按回车键返回..."
+}
+
+# 配置Docker日志
+configure_docker_logging() {
+    clear
+    echo "配置Docker日志选项："
+    echo "1. 设置日志大小限制"
+    echo "2. 设置日志保留时间"
+    echo "3. 禁用容器日志"
+    echo "0. 返回"
+    
+    read -p "请选择 [0-3]: " log_choice
+    case $log_choice in
+        1)
+            read -p "请输入日志大小限制(例如:100m): " log_size
+            echo "{\"log-driver\":\"json-file\",\"log-opts\":{\"max-size\":\"$log_size\"}}" | sudo tee /etc/docker/daemon.json
+            ;;
+        2)
+            read -p "请输入日志保留天数: " log_days
+            echo "{\"log-driver\":\"json-file\",\"log-opts\":{\"max-file\":\"$log_days\"}}" | sudo tee /etc/docker/daemon.json
+            ;;
+        3)
+            echo "{\"log-driver\":\"none\"}" | sudo tee /etc/docker/daemon.json
+            ;;
+        0)
+            return
+            ;;
+    esac
+    
+    sudo systemctl daemon-reload
+    sudo systemctl restart docker
+    echo "Docker日志配置已更新"
+    read -p "按回车键返回..."
+}
+
+# 配置Docker DNS
+configure_docker_dns() {
+    clear
+    read -p "请输入DNS服务器(多个用逗号分隔): " dns_servers
+    if [ -n "$dns_servers" ]; then
+        echo "{\"dns\":[\"$dns_servers\"]}" | sudo tee /etc/docker/daemon.json
+        sudo systemctl daemon-reload
+        sudo systemctl restart docker
+        echo "Docker DNS已配置"
+        log "配置Docker DNS: $dns_servers"
+    fi
+    read -p "按回车键返回..."
+}
+
+# 配置Docker时区
+configure_docker_timezone() {
+    clear
+    read -p "请输入时区(例如:Asia/Shanghai): " timezone
+    if [ -n "$timezone" ]; then
+        echo "{\"timezone\":\"$timezone\"}" | sudo tee /etc/docker/daemon.json
+        sudo systemctl daemon-reload
+        sudo systemctl restart docker
+        echo "Docker时区已配置"
+        log "配置Docker时区: $timezone"
+    fi
+    read -p "按回车键返回..."
+}
+
+# 配置Docker资源限制
+configure_docker_resources() {
+    clear
+    read -p "请输入CPU限制(例如:2): " cpu_limit
+    read -p "请输入内存限制(例如:2g): " mem_limit
+    if [ -n "$cpu_limit" ] && [ -n "$mem_limit" ]; then
+        echo "{\"default-cpu-shares\":$((cpu_limit*1024)),\"default-memory\":\"$mem_limit\"}" | sudo tee /etc/docker/daemon.json
+        sudo systemctl daemon-reload
+        sudo systemctl restart docker
+        echo "Docker资源限制已配置"
+        log "配置Docker资源限制: CPU=$cpu_limit, 内存=$mem_limit"
+    fi
+    read -p "按回车键返回..."
+}
+
+# 配置Docker网络选项
+configure_docker_network_options() {
+    clear
+    read -p "请输入默认网络模式(bridge/host/none): " network_mode
+    if [ -n "$network_mode" ]; then
+        echo "{\"default-network-mode\":\"$network_mode\"}" | sudo tee /etc/docker/daemon.json
+        sudo systemctl daemon-reload
+        sudo systemctl restart docker
+        echo "Docker网络模式已配置"
+        log "配置Docker网络模式: $network_mode"
+    fi
+    read -p "按回车键返回..."
+}
+
+# 配置Docker存储驱动
+configure_docker_storage_driver() {
+    clear
+    echo "可用的存储驱动："
+    echo "1. overlay2 (推荐)"
+    echo "2. devicemapper"
+    echo "3. aufs"
+    echo "4. btrfs"
+    echo "5. zfs"
+    
+    read -p "请选择存储驱动 [1-5]: " driver_choice
+    case $driver_choice in
+        1) driver="overlay2";;
+        2) driver="devicemapper";;
+        3) driver="aufs";;
+        4) driver="btrfs";;
+        5) driver="zfs";;
+        *) echo "无效的选择"; return;;
+    esac
+    
+    if [ -n "$driver" ]; then
+        echo "{\"storage-driver\":\"$driver\"}" | sudo tee /etc/docker/daemon.json
+        sudo systemctl daemon-reload
+        sudo systemctl restart docker
+        echo "Docker存储驱动已配置"
+        log "配置Docker存储驱动: $driver"
+    fi
+    read -p "按回车键返回..."
+}
+
+# 显示Docker配置
+show_docker_config() {
+    clear
+    echo "Docker配置信息："
+    if [ -f "/etc/docker/daemon.json" ]; then
+        cat /etc/docker/daemon.json
+    else
+        echo "未找到配置文件"
+    fi
+    read -p "按回车键返回..."
+}
