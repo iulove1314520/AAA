@@ -578,24 +578,88 @@ manage_swap() {
             3)
                 clear
                 echo "当前Swap文件列表："
-                swapon --show
-                read -p "请输入要删除的Swap文件路径: " swap_path
+                echo "----------------------------------------"
+                echo "序号  文件路径              大小    使用量  优先级"
+                echo "----------------------------------------"
                 
-                if [ -n "$swap_path" ] && [ -f "$swap_path" ]; then
-                    # 关闭swap
-                    sudo swapoff $swap_path
-                    # 从fstab中移除
-                    sudo sed -i "\|^$swap_path|d" /etc/fstab
-                    # 删除文件
-                    sudo rm $swap_path
-                    
-                    echo "Swap文件已删除"
-                    echo "当前Swap状态："
-                    free -h | grep Swap
-                    log "删除Swap文件: $swap_path"
-                else
-                    echo "Swap文件不存在"
-                fi
+                # 获取并显示所有swap文件，带序号
+                declare -a swap_files
+                i=1
+                while read -r line; do
+                    if [[ $line =~ ^/ ]]; then  # 只处理以/开头的行
+                        swap_files[$i]=$(echo "$line" | awk '{print $1}')
+                        printf "%-5s %-20s %-8s %-8s %-8s\n" "$i" \
+                            "$(echo "$line" | awk '{print $1}')" \
+                            "$(echo "$line" | awk '{print $3}')" \
+                            "$(echo "$line" | awk '{print $4}')" \
+                            "$(echo "$line" | awk '{print $5}')"
+                        ((i++))
+                    fi
+                done < <(swapon --show)
+                
+                echo -e "\n选择操作："
+                echo "1. 通过序号删除"
+                echo "2. 手动输入路径"
+                echo "0. 返回上级菜单"
+                
+                read -p "请选择操作方式 [0-2]: " del_choice
+                case $del_choice in
+                    1)
+                        read -p "请输入要删除的Swap文件序号: " num
+                        if [ -n "$num" ] && [ "$num" -ge 1 ] && [ "$num" -lt "$i" ]; then
+                            swap_path="${swap_files[$num]}"
+                            if [ -n "$swap_path" ] && [ -f "$swap_path" ]; then
+                                echo "即将删除Swap文件: $swap_path"
+                                read -p "确认删除？(y/n): " confirm
+                                if [[ $confirm == "y" ]]; then
+                                    # 关闭swap
+                                    sudo swapoff "$swap_path"
+                                    # 从fstab中移除
+                                    sudo sed -i "\|^$swap_path|d" /etc/fstab
+                                    # 删除文件
+                                    sudo rm "$swap_path"
+                                    
+                                    echo "Swap文件已删除"
+                                    echo "当前Swap状态："
+                                    free -h | grep Swap
+                                    log "删除Swap文件: $swap_path"
+                                else
+                                    echo "操作已取消"
+                                fi
+                            else
+                                echo "Swap文件不存在"
+                            fi
+                        else
+                            echo "无效的序号"
+                        fi
+                        ;;
+                    2)
+                        read -p "请输入要删除的Swap文件完整路径: " swap_path
+                        if [ -n "$swap_path" ] && [ -f "$swap_path" ]; then
+                            echo "即将删除Swap文件: $swap_path"
+                            read -p "确认删除？(y/n): " confirm
+                            if [[ $confirm == "y" ]]; then
+                                sudo swapoff "$swap_path"
+                                sudo sed -i "\|^$swap_path|d" /etc/fstab
+                                sudo rm "$swap_path"
+                                echo "Swap文件已删除"
+                                echo "当前Swap状态："
+                                free -h | grep Swap
+                                log "删除Swap文件: $swap_path"
+                            else
+                                echo "操作已取消"
+                            fi
+                        else
+                            echo "Swap文件不存在"
+                        fi
+                        ;;
+                    0)
+                        return
+                        ;;
+                    *)
+                        echo "无效的选择"
+                        ;;
+                esac
                 read -p "按回车键返回..."
                 ;;
             4)
@@ -1088,7 +1152,7 @@ show_all_info() {
     free -h | grep "Swap:"
     
     echo -e "\n【磁盘信息】"
-    echo "磁盘使用情况："
+    echo "磁���使用情况："
     df -h | grep '^/dev/'
     echo -e "\n磁盘分区信息："
     lsblk
