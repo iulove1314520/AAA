@@ -47,6 +47,7 @@ show_menu() {
     echo "1. 显示系统信息"
     echo "2. 系统配置管理"
     echo "3. 网络管理"
+    echo "4. Docker管理"
     echo "0. 退出"
     echo "================================"
 }
@@ -613,6 +614,290 @@ system_config() {
     done
 }
 
+# Docker管理菜单
+show_docker_menu() {
+    clear
+    echo "================================"
+    echo "        Docker管理菜单          "
+    echo "================================"
+    echo "1. 检查Docker状态"
+    echo "2. 安装/更新Docker"
+    echo "3. 容器管理"
+    echo "4. 镜像管理"
+    echo "5. 网络管理"
+    echo "6. 系统清理"
+    echo "7. 配置修改"
+    echo "0. 返回上级菜单"
+    echo "================================"
+}
+
+# Docker管理主函数
+manage_docker() {
+    while true; do
+        show_docker_menu
+        read -p "请输入您的选择 [0-7]: " choice
+        
+        case $choice in
+            1)
+                check_docker_status
+                ;;
+            2)
+                install_update_docker
+                ;;
+            3)
+                manage_containers
+                ;;
+            4)
+                manage_images
+                ;;
+            5)
+                manage_docker_network
+                ;;
+            6)
+                clean_docker_system
+                ;;
+            7)
+                modify_docker_config
+                ;;
+            0)
+                return
+                ;;
+            *)
+                echo "无效的选择，请重试..."
+                sleep 2
+                ;;
+        esac
+    done
+}
+
+# 检查Docker状态
+check_docker_status() {
+    clear
+    echo "========== Docker状态检查 =========="
+    
+    # 检查Docker是否安装
+    if command -v docker >/dev/null 2>&1; then
+        echo -e "\n[Docker信息]"
+        echo "Docker已安装"
+        echo "Docker版本：" $(docker --version)
+        echo "Docker Compose版本：" $(docker-compose --version 2>/dev/null || echo "未安装")
+        
+        # 检查Docker服务状态
+        echo -e "\n[服务状态]"
+        if systemctl is-active docker >/dev/null 2>&1; then
+            echo "Docker服务：运行中"
+        else
+            echo "Docker服务：未运行"
+        fi
+        
+        # 检查开机启动状态
+        if systemctl is-enabled docker >/dev/null 2>&1; then
+            echo "开机启动：已启用"
+        else
+            echo "开机启动：未启用"
+        fi
+        
+        # 显示Docker信息
+        echo -e "\n[系统信息]"
+        docker info | grep -E "Server Version|Storage Driver|Logging Driver|Cgroup Driver|Containers:|Images:|Registry"
+        
+        # 显示资源使用情况
+        echo -e "\n[资源使用]"
+        docker stats --no-stream --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}\t{{.BlockIO}}"
+    else
+        echo "Docker未安装"
+    fi
+    
+    read -p "按回车键返回..."
+}
+
+# 安装或更新Docker
+install_update_docker() {
+    clear
+    echo "========== Docker安装/更新 =========="
+    
+    # 检查是否已安装Docker
+    if command -v docker >/dev/null 2>&1; then
+        current_version=$(docker --version | cut -d ' ' -f3 | tr -d ',')
+        echo "当前Docker版本: $current_version"
+        read -p "是否要更新Docker？(y/n): " update_choice
+        if [[ $update_choice != "y" ]]; then
+            return
+        fi
+    fi
+    
+    # 安装依赖
+    echo "正在安装必要的依赖..."
+    if command -v apt-get >/dev/null 2>&1; then
+        sudo apt-get update
+        sudo apt-get install -y curl wget
+    elif command -v yum >/dev/null 2>&1; then
+        sudo yum install -y curl wget
+    fi
+    
+    # 安装Docker
+    echo "正在安装/更新Docker..."
+    curl -fsSL https://get.docker.com | bash
+    
+    # 启动Docker服务
+    sudo systemctl start docker
+    sudo systemctl enable docker
+    
+    # 安装Docker Compose
+    echo "正在安装Docker Compose..."
+    compose_version="v2.30.1"
+    sudo curl -L "https://github.com/docker/compose/releases/download/${compose_version}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    sudo chmod +x /usr/local/bin/docker-compose
+    
+    # 配置用户组
+    sudo groupadd docker 2>/dev/null
+    sudo usermod -aG docker $USER
+    
+    # 配置镜像加速
+    echo "是否配置国内镜像加速？(y/n): "
+    read -p "选择: " mirror_choice
+    if [[ $mirror_choice == "y" ]]; then
+        configure_docker_mirror
+    fi
+    
+    echo -e "\n安装完成！"
+    echo "Docker版本：" $(docker --version)
+    echo "Docker Compose版本：" $(docker-compose --version)
+    echo -e "\n注意：可能需要重新登录才能使用docker组权限"
+    read -p "按回车键返回..."
+}
+
+# 配置Docker镜像加速
+configure_docker_mirror() {
+    local config_file="/etc/docker/daemon.json"
+    sudo mkdir -p /etc/docker
+    
+    echo "选择镜像加速器："
+    echo "1. 阿里云"
+    echo "2. 腾讯云"
+    echo "3. 中科大"
+    echo "4. 网易"
+    read -p "请选择 [1-4]: " mirror_type
+    
+    local mirror_url
+    case $mirror_type in
+        1)
+            mirror_url="https://mirrors.aliyun.com/docker-ce/linux/debian"
+            ;;
+        2)
+            mirror_url="https://mirror.ccs.tencentyun.com"
+            ;;
+        3)
+            mirror_url="https://mirrors.ustc.edu.cn/docker-ce/linux/debian"
+            ;;
+        4)
+            mirror_url="https://mirrors.163.com/docker-ce/linux/debian"
+            ;;
+        *)
+            echo "无效的选择"
+            return
+            ;;
+    esac
+    
+    echo "{
+  \"registry-mirrors\": [\"${mirror_url}\"],
+  \"log-driver\": \"json-file\",
+  \"log-opts\": {
+    \"max-size\": \"100m\",
+    \"max-file\": \"3\"
+  }
+}" | sudo tee $config_file
+    
+    sudo systemctl daemon-reload
+    sudo systemctl restart docker
+    echo "镜像加速配置完成"
+}
+
+# 修改Docker配置
+modify_docker_config() {
+    clear
+    echo "========== Docker配置修改 =========="
+    echo "1. 配置镜像加速"
+    echo "2. 修改存储目录"
+    echo "3. 修改日志配置"
+    echo "4. 配置容器DNS"
+    echo "0. 返回"
+    
+    read -p "请选择 [0-4]: " config_choice
+    case $config_choice in
+        1)
+            configure_docker_mirror
+            ;;
+        2)
+            change_docker_root
+            ;;
+        3)
+            configure_docker_logging
+            ;;
+        4)
+            configure_docker_dns
+            ;;
+        0)
+            return
+            ;;
+        *)
+            echo "无效的选择"
+            ;;
+    esac
+    read -p "按回车键返回..."
+}
+
+# 修改Docker存储目录
+change_docker_root() {
+    clear
+    echo "当前Docker根目录："
+    docker info | grep "Docker Root Dir"
+    
+    read -p "请输入新的存储路径: " new_path
+    if [ -n "$new_path" ]; then
+        echo "{
+  \"data-root\": \"$new_path\"
+}" | sudo tee -a /etc/docker/daemon.json
+        
+        sudo systemctl daemon-reload
+        sudo systemctl restart docker
+        echo "存储目录已修改，请检查新目录是否生效"
+    fi
+}
+
+# 配置Docker日志
+configure_docker_logging() {
+    clear
+    echo "配置Docker日志选项..."
+    echo "{
+  \"log-driver\": \"json-file\",
+  \"log-opts\": {
+    \"max-size\": \"100m\",
+    \"max-file\": \"3\"
+  }
+}" | sudo tee -a /etc/docker/daemon.json
+    
+    sudo systemctl daemon-reload
+    sudo systemctl restart docker
+    echo "日志配置已更新"
+}
+
+# 配置Docker DNS
+configure_docker_dns() {
+    clear
+    echo "配置Docker DNS..."
+    read -p "请输入首选DNS服务器: " dns1
+    read -p "请输入备用DNS服务器: " dns2
+    
+    echo "{
+  \"dns\": [\"$dns1\", \"$dns2\"]
+}" | sudo tee -a /etc/docker/daemon.json
+    
+    sudo systemctl daemon-reload
+    sudo systemctl restart docker
+    echo "DNS配置已更新"
+}
+
 # 9. main函数和程序入口
 main() {
     # 检查并安装必要工具
@@ -621,7 +906,7 @@ main() {
     # 主程序循环
     while true; do
         show_menu
-        read -p "请输入您的选择 [0-3]: " choice
+        read -p "请输入您的选择 [0-4]: " choice
         
         case $choice in
             1)
@@ -632,6 +917,9 @@ main() {
                 ;;
             3)
                 manage_network
+                ;;
+            4)
+                manage_docker
                 ;;
             0)
                 echo "感谢使用，再见！"
