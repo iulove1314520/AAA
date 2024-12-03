@@ -720,7 +720,7 @@ manage_images() {
         echo "7. 构建镜像"
         echo "8. 镜像历史"
         echo "9. 清理未使用镜像"
-        echo "0. 返回上级菜单"
+        echo "0. 返回上��菜单"
         echo "================================"
         
         read -p "请输入您的选择 [0-9]: " choice
@@ -1132,6 +1132,266 @@ manage_ip_protocol() {
             sleep 2
             ;;
     esac
+}
+
+# 安装或更新Docker
+install_update_docker() {
+    clear
+    echo "========== Docker安装/更新 =========="
+    
+    # 检查是否已安装Docker
+    if command -v docker >/dev/null 2>&1; then
+        current_version=$(docker --version | cut -d ' ' -f3 | tr -d ',')
+        echo "当前Docker版本: $current_version"
+        read -p "是否要更新Docker？(y/n): " update_choice
+        if [[ $update_choice != "y" ]]; then
+            return
+        fi
+    fi
+    
+    echo "正在安装/更新Docker..."
+    # 使用官方安装脚本
+    wget -qO- get.docker.com | bash
+    
+    # 启动Docker服务
+    sudo systemctl start docker
+    sudo systemctl enable docker
+    
+    # 安装Docker Compose
+    echo "正在安装Docker Compose..."
+    compose_version="v2.30.1"
+    sudo curl -L "https://github.com/docker/compose/releases/download/${compose_version}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    sudo chmod +x /usr/local/bin/docker-compose
+    
+    # 配置用户组
+    sudo groupadd docker 2>/dev/null
+    sudo usermod -aG docker $USER
+    
+    # 配置镜像加速
+    echo "是否配置国内镜像加速？(y/n): "
+    read -p "选择: " mirror_choice
+    if [[ $mirror_choice == "y" ]]; then
+        configure_docker_mirror
+    fi
+    
+    echo -e "\n安装完成！"
+    echo "Docker版本：" $(docker --version)
+    echo "Docker Compose版本：" $(docker-compose --version)
+    echo -e "\n注意：可能需要重新登录才能使用docker组权限"
+    read -p "按回车键返回..."
+}
+
+# 防火墙管理相关函数
+# 启动防火墙
+start_firewall() {
+    clear
+    echo "============ 开启防火墙 ============"
+    if command -v ufw >/dev/null 2>&1; then
+        sudo ufw enable
+        echo "UFW防火墙已开启"
+        log "开启UFW防火墙"
+    elif command -v firewalld >/dev/null 2>&1; then
+        sudo systemctl start firewalld
+        sudo systemctl enable firewalld
+        echo "FirewallD防火墙已开启"
+        log "开启FirewallD防火墙"
+    else
+        echo "未检测到支持的防火墙服务"
+    fi
+    read -p "按回车键返回..."
+}
+
+# 停止防火墙
+stop_firewall() {
+    clear
+    echo "============ 关闭防火墙 ============"
+    if command -v ufw >/dev/null 2>&1; then
+        sudo ufw disable
+        echo "UFW防火墙已关闭"
+        log "关闭UFW防火墙"
+    elif command -v firewalld >/dev/null 2>&1; then
+        sudo systemctl stop firewalld
+        echo "FirewallD防火墙已关闭"
+        log "关闭FirewallD防火墙"
+    else
+        echo "未检测到支持的防火墙服务"
+    fi
+    read -p "按回车键返回..."
+}
+
+# 禁用防火墙开机启动
+disable_firewall() {
+    clear
+    echo "============ 禁用防火墙开机启动 ============"
+    if command -v ufw >/dev/null 2>&1; then
+        sudo systemctl disable ufw
+        echo "UFW防火墙开机启动已禁用"
+        log "禁用UFW防火墙开机启动"
+    elif command -v firewalld >/dev/null 2>&1; then
+        sudo systemctl disable firewalld
+        echo "FirewallD防火墙开机启动已禁用"
+        log "禁用FirewallD防火墙开机启动"
+    else
+        echo "未检测到支持的防火墙服务"
+    fi
+    read -p "按回车键返回..."
+}
+
+# 开放端口
+open_port() {
+    clear
+    echo "============ 开放端口 ============"
+    read -p "请输入要开放的端口号: " port
+    read -p "请选择协议类型 (tcp/udp/both): " protocol
+    
+    if [[ ! "$port" =~ ^[0-9]+$ ]] || [ "$port" -lt 1 ] || [ "$port" -gt 65535 ]; then
+        echo "无效的端口号！端口号必须在1-65535之间"
+        read -p "按回车键返回..."
+        return
+    fi
+    
+    if command -v ufw >/dev/null 2>&1; then
+        case $protocol in
+            tcp)
+                sudo ufw allow $port/tcp
+                log "UFW开放TCP端口 $port"
+                ;;
+            udp)
+                sudo ufw allow $port/udp
+                log "UFW开放UDP端口 $port"
+                ;;
+            both)
+                sudo ufw allow $port
+                log "UFW开放TCP/UDP端口 $port"
+                ;;
+            *)
+                echo "无效的协议类型！"
+                read -p "按回车键返回..."
+                return
+                ;;
+        esac
+        echo "端口已开放"
+    elif command -v firewalld >/dev/null 2>&1; then
+        case $protocol in
+            tcp)
+                sudo firewall-cmd --permanent --add-port=$port/tcp
+                log "FirewallD开放TCP端口 $port"
+                ;;
+            udp)
+                sudo firewall-cmd --permanent --add-port=$port/udp
+                log "FirewallD开放UDP端口 $port"
+                ;;
+            both)
+                sudo firewall-cmd --permanent --add-port=$port/tcp
+                sudo firewall-cmd --permanent --add-port=$port/udp
+                log "FirewallD开放TCP/UDP端口 $port"
+                ;;
+            *)
+                echo "无效的协议类型！"
+                read -p "按回车键返回..."
+                return
+                ;;
+        esac
+        sudo firewall-cmd --reload
+        echo "端口已开放"
+    else
+        echo "未检测到支持的防火墙服务"
+    fi
+    read -p "按回车键返回..."
+}
+
+# 关闭端口
+close_port() {
+    clear
+    echo "============ 关闭端口 ============"
+    read -p "请输入要关闭的端口号: " port
+    read -p "请选择协议类型 (tcp/udp/both): " protocol
+    
+    if [[ ! "$port" =~ ^[0-9]+$ ]] || [ "$port" -lt 1 ] || [ "$port" -gt 65535 ]; then
+        echo "无效的端口号！端口号必须在1-65535之间"
+        read -p "按回车键返回..."
+        return
+    fi
+    
+    if command -v ufw >/dev/null 2>&1; then
+        case $protocol in
+            tcp)
+                sudo ufw deny $port/tcp
+                sudo ufw delete allow $port/tcp
+                log "UFW关闭TCP端口 $port"
+                ;;
+            udp)
+                sudo ufw deny $port/udp
+                sudo ufw delete allow $port/udp
+                log "UFW关闭UDP端口 $port"
+                ;;
+            both)
+                sudo ufw deny $port
+                sudo ufw delete allow $port
+                log "UFW关闭TCP/UDP端口 $port"
+                ;;
+            *)
+                echo "无效的协议类型！"
+                read -p "按回车键返回..."
+                return
+                ;;
+        esac
+        echo "端口已关闭"
+    elif command -v firewalld >/dev/null 2>&1; then
+        case $protocol in
+            tcp)
+                sudo firewall-cmd --permanent --remove-port=$port/tcp
+                log "FirewallD关闭TCP端口 $port"
+                ;;
+            udp)
+                sudo firewall-cmd --permanent --remove-port=$port/udp
+                log "FirewallD关闭UDP端口 $port"
+                ;;
+            both)
+                sudo firewall-cmd --permanent --remove-port=$port/tcp
+                sudo firewall-cmd --permanent --remove-port=$port/udp
+                log "FirewallD关闭TCP/UDP端口 $port"
+                ;;
+            *)
+                echo "无效的协议类型！"
+                read -p "按回车键返回..."
+                return
+                ;;
+        esac
+        sudo firewall-cmd --reload
+        echo "端口已关闭"
+    else
+        echo "未检测到支持的防火墙服务"
+    fi
+    read -p "按回车键返回..."
+}
+
+# 查看已开放端口
+list_open_ports() {
+    clear
+    echo "============ 已开放端口列表 ============"
+    if command -v ufw >/dev/null 2>&1; then
+        echo "UFW防火墙规则："
+        sudo ufw status numbered
+    elif command -v firewalld >/dev/null 2>&1; then
+        echo "FirewallD防火墙规则："
+        echo "TCP端口："
+        sudo firewall-cmd --list-ports | tr ' ' '\n' | grep tcp
+        echo "UDP端口："
+        sudo firewall-cmd --list-ports | tr ' ' '\n' | grep udp
+        echo -e "\n防火墙区域配置："
+        sudo firewall-cmd --list-all
+    else
+        echo "未检测到支持的防火墙服务"
+    fi
+    
+    echo -e "\n当前系统监听端口："
+    echo "TCP端口："
+    netstat -tuln | grep "LISTEN"
+    echo -e "\nUDP端口："
+    netstat -tuln | grep "UDP"
+    
+    read -p "按回车键返回..."
 }
 
 # 6. 主程序函数
