@@ -93,7 +93,7 @@ show_menu() {
 show_system_config_menu() {
     clear
     echo "================================"
-    echo "        系统配置菜单           "
+    echo "        系统配��菜单           "
     echo "================================"
     echo "1. 用户管理"
     echo "2. 时区管理"
@@ -1756,7 +1756,7 @@ start_firewall() {
     if command -v ufw >/dev/null 2>&1; then
         sudo ufw enable
         echo "UFW防火墙已开启"
-        log "开启UFW防火墙"
+        log "开��UFW防火墙"
     elif command -v firewalld >/dev/null 2>&1; then
         sudo systemctl start firewalld
         sudo systemctl enable firewalld
@@ -1807,7 +1807,7 @@ disable_firewall() {
 # 开放端口
 open_port() {
     clear
-    echo "============ 开放端口 ============"
+    echo "============ ���放端口 ============"
     read -p "请输入要开放的端口号: " port
     read -p "请选择协议类型 (tcp/udp/both): " protocol
     
@@ -2445,7 +2445,7 @@ manage_routing_config() {
         echo "2. 添加静态路由"
         echo "3. 删除静态路由"
         echo "4. 修改默认网关"
-        echo "5. 查��路由跟踪"
+        echo "5. 查���路由跟踪"
         echo "0. 返回上级菜单"
         echo "=============================="
         
@@ -2666,7 +2666,7 @@ manage_compose_projects() {
                 ;;
             6)
                 clear
-                read -p "请输入docker-compose.yml所在目录: " compose_dir
+                read -p "请输��docker-compose.yml所在目录: " compose_dir
                 if [ -d "$compose_dir" ]; then
                     cd "$compose_dir"
                     docker-compose pull
@@ -2804,4 +2804,226 @@ manage_volumes() {
                 ;;
         esac
     done
+}
+
+# 系统配置管理函数
+system_config() {
+    while true; do
+        show_system_config_menu
+        read -p "请输入您的选择 [0-8]: " choice
+        
+        case $choice in
+            1)
+                user_management
+                ;;
+            2)
+                manage_timezone
+                ;;
+            3)
+                manage_hosts
+                ;;
+            4)
+                manage_swap
+                ;;
+            5)
+                manage_network_acceleration
+                ;;
+            6)
+                manage_system_services
+                ;;
+            7)
+                manage_system_update
+                ;;
+            8)
+                manage_packages
+                ;;
+            0)
+                return
+                ;;
+            *)
+                echo "无效的选择，请重试..."
+                sleep 2
+                ;;
+        esac
+    done
+}
+
+# 网络加速管理
+manage_network_acceleration() {
+    while true; do
+        clear
+        echo "========== 网络加速管理 =========="
+        echo "1. 安装BBR"
+        echo "2. 查看当前拥塞控制算法"
+        echo "3. 切换TCP拥塞控制算法"
+        echo "4. 优化网络参数"
+        echo "5. 还原默认设置"
+        echo "0. 返回上级菜单"
+        echo "=================================="
+        
+        read -p "请输入您的选择 [0-5]: " choice
+        case $choice in
+            1)
+                install_bbr
+                ;;
+            2)
+                show_congestion_control
+                ;;
+            3)
+                change_congestion_control
+                ;;
+            4)
+                optimize_network
+                ;;
+            5)
+                restore_network_defaults
+                ;;
+            0)
+                return
+                ;;
+            *)
+                echo "无效的选择，请重试..."
+                sleep 2
+                ;;
+        esac
+    done
+}
+
+# 系统服务管理
+manage_system_services() {
+    while true; do
+        clear
+        echo "========== 系统服务管理 =========="
+        echo "1. 查看所有服务"
+        echo "2. 启动服务"
+        echo "3. 停止服务"
+        echo "4. 重启服务"
+        echo "5. 设置服务开机启动"
+        echo "6. 禁用服务开机启动"
+        echo "7. 查看服务状态"
+        echo "8. 查看服务日志"
+        echo "0. 返回上级菜单"
+        echo "=================================="
+        
+        read -p "请输入您的选择 [0-8]: " choice
+        case $choice in
+            1)
+                list_services
+                ;;
+            2)
+                start_service
+                ;;
+            3)
+                stop_service
+                ;;
+            4)
+                restart_service
+                ;;
+            5)
+                enable_service
+                ;;
+            6)
+                disable_service
+                ;;
+            7)
+                show_service_status
+                ;;
+            8)
+                view_service_logs
+                ;;
+            0)
+                return
+                ;;
+            *)
+                echo "无效的选择，请重试..."
+                sleep 2
+                ;;
+        esac
+    done
+}
+
+# 系统更新管理
+manage_system_update() {
+    while true; do
+        clear
+        echo "========== 系统更新管理 =========="
+        echo "1. 更新软件包列表"
+        echo "2. 更新所有软件包"
+        echo "3. 自动移除无用软件包"
+        echo "4. 清理软件包缓存"
+        echo "5. 查看可更新的软件包"
+        echo "6. 设置自动更新"
+        echo "0. 返回上级菜单"
+        echo "=================================="
+        
+        read -p "请输入您的选择 [0-6]: " choice
+        case $choice in
+            1)
+                update_package_list
+                ;;
+            2)
+                upgrade_packages
+                ;;
+            3)
+                autoremove_packages
+                ;;
+            4)
+                clean_package_cache
+                ;;
+            5)
+                show_upgradable_packages
+                ;;
+            6)
+                configure_auto_update
+                ;;
+            0)
+                return
+                ;;
+            *)
+                echo "无效的选择，请重试..."
+                sleep 2
+                ;;
+        esac
+    done
+}
+
+# 检查并安装必要的软件包
+install_required_packages() {
+    local packages=("$@")
+    for package in "${packages[@]}"; do
+        if ! command -v $package >/dev/null 2>&1; then
+            echo "正在安装 $package..."
+            if [ "$PKG_MANAGER" = "apt-get" ]; then
+                sudo apt-get install -y $package
+            elif [ "$PKG_MANAGER" = "yum" ]; then
+                sudo yum install -y $package
+            elif [ "$PKG_MANAGER" = "dnf" ]; then
+                sudo dnf install -y $package
+            fi
+        fi
+    done
+}
+
+# 备份配置文件
+backup_config() {
+    local config_file="$1"
+    if [ -f "$config_file" ]; then
+        sudo cp "$config_file" "${config_file}.bak.$(date +%Y%m%d%H%M%S)"
+        echo "已备份配置文件: ${config_file}.bak.$(date +%Y%m%d%H%M%S)"
+        return 0
+    else
+        echo "配置文件不存在: $config_file"
+        return 1
+    fi
+}
+
+# 检查命令执行结果
+check_command_status() {
+    if [ $? -eq 0 ]; then
+        echo "操作成功"
+        return 0
+    else
+        echo "操作失败"
+        return 1
+    fi
 }
